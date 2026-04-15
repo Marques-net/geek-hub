@@ -1,0 +1,135 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: match-core
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: match-core-build
+          image: golang:1.24-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -lc
+          args:
+            - >
+              set -eux &&
+              test -x /usr/local/go/bin/go &&
+              export PATH="/usr/local/go/bin:/workspace/.gopath/bin:${PATH}" &&
+              export HOME="/workspace" &&
+              export TMPDIR="/tmp" &&
+              export GOPATH="/workspace/.gopath" &&
+              export GOCACHE="/workspace/.gocache" &&
+              export GOMODCACHE="/workspace/.gopath/pkg/mod" &&
+              /usr/local/go/bin/go version &&
+              cp -R /src/. /workspace &&
+              cd /workspace &&
+              mkdir -p /workspace/bin &&
+              CGO_ENABLED=0 GOOS=linux GOARCH=amd64 /usr/local/go/bin/go build -mod=mod -o /workspace/bin/match-core ./cmd/match-core
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 700m
+              memory: 1Gi
+          volumeMounts:
+            - name: match-core-source
+              mountPath: /src
+              readOnly: true
+            - name: workspace
+              mountPath: /workspace
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: match-core
+          image: alpine:3.20
+          imagePullPolicy: IfNotPresent
+          command:
+            - /workspace/bin/match-core
+          startupProbe:
+            tcpSocket:
+              port: grpc
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: match-core-source
+              mountPath: /src
+              readOnly: true
+            - name: workspace
+              mountPath: /workspace
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: match-core-source
+          configMap:
+            name: match-core-source
+            items:
+              - key: go.mod
+                path: go.mod
+              - key: main.go
+                path: cmd/match-core/main.go
+              - key: config.go
+                path: internal/games/chess/config.go
+              - key: metrics.go
+                path: internal/games/chess/metrics.go
+              - key: service.go
+                path: internal/games/chess/service.go
+              - key: store.go
+                path: internal/games/chess/store.go
+              - key: bot_client.go
+                path: internal/games/chess/bot_client.go
+              - key: types.go
+                path: internal/games/chess/types.go
+              - key: runtime.go
+                path: internal/platform/runtime.go
+              - key: telemetry.go
+                path: internal/observability/telemetry.go
+              - key: match_core.pb.go
+                path: proto/matchcore/match_core.pb.go
+              - key: match_core_grpc.pb.go
+                path: proto/matchcore/match_core_grpc.pb.go
+              - key: strategy_engine.pb.go
+                path: proto/strategyv1/strategy_engine.pb.go
+              - key: strategy_engine_grpc.pb.go
+                path: proto/strategyv1/strategy_engine_grpc.pb.go
+        - name: workspace
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

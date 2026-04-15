@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realtime-gateway
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: realtime-gateway-build
+          image: golang:1.24-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -lc
+          args:
+            - >
+              set -eux &&
+              test -x /usr/local/go/bin/go &&
+              export PATH="/usr/local/go/bin:/workspace/.gopath/bin:${PATH}" &&
+              export HOME="/workspace" &&
+              export TMPDIR="/tmp" &&
+              export GOPATH="/workspace/.gopath" &&
+              export GOCACHE="/workspace/.gocache" &&
+              export GOMODCACHE="/workspace/.gopath/pkg/mod" &&
+              /usr/local/go/bin/go version &&
+              cp -R /src/. /workspace &&
+              cd /workspace &&
+              mkdir -p /workspace/bin &&
+              CGO_ENABLED=0 GOOS=linux GOARCH=amd64 /usr/local/go/bin/go build -mod=mod -o /workspace/bin/realtime-gateway ./cmd/realtime-gateway
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 700m
+              memory: 1Gi
+          volumeMounts:
+            - name: realtime-gateway-source
+              mountPath: /src
+              readOnly: true
+            - name: workspace
+              mountPath: /workspace
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: realtime-gateway
+          image: alpine:3.20
+          imagePullPolicy: IfNotPresent
+          command:
+            - /workspace/bin/realtime-gateway
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: realtime-gateway-source
+              mountPath: /src
+              readOnly: true
+            - name: workspace
+              mountPath: /workspace
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: realtime-gateway-source
+          configMap:
+            name: realtime-gateway-source
+            items:
+              - key: go.mod
+                path: go.mod
+              - key: main.go
+                path: cmd/realtime-gateway/main.go
+              - key: config.go
+                path: internal/gateway/config.go
+              - key: matchcore_client.go
+                path: internal/gateway/matchcore_client.go
+              - key: metrics.go
+                path: internal/gateway/metrics.go
+              - key: socket_server.go
+                path: internal/gateway/socket_server.go
+              - key: types.go
+                path: internal/gateway/types.go
+              - key: telemetry.go
+                path: internal/observability/telemetry.go
+              - key: match_core.pb.go
+                path: proto/matchcore/match_core.pb.go
+              - key: match_core_grpc.pb.go
+                path: proto/matchcore/match_core_grpc.pb.go
+        - name: workspace
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

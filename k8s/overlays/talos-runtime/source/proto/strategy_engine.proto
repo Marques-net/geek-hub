@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package games.strategy.v1;
+option go_package = "github.com/Marques-net/geek-hub/services/bot-engine/proto/strategyv1;strategyv1";
+
+message GetActionRequest {
+  string game_type = 1;
+  string room_code = 2;
+  string game_id = 3;
+  string state_json = 4;
+  string mode = 5;
+  repeated string recent_actions = 6;
+  uint32 move_count = 7;
+}
+
+message GetActionResponse {
+  bool found = 1;
+  string action_type = 2;
+  string action_payload_json = 3;
+  string coach_message = 4;
+}
+
+service StrategyEngineService {
+  rpc GetAction(GetActionRequest) returns (GetActionResponse);
+}

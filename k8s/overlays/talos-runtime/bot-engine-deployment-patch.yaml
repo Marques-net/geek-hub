@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bot-engine
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: bot-engine-build
+          image: golang:1.24-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -lc
+          args:
+            - >
+              set -eux &&
+              test -x /usr/local/go/bin/go &&
+              export PATH="/usr/local/go/bin:/workspace/.gopath/bin:${PATH}" &&
+              export HOME="/workspace" &&
+              export TMPDIR="/tmp" &&
+              export GOPATH="/workspace/.gopath" &&
+              export GOCACHE="/workspace/.gocache" &&
+              export GOMODCACHE="/workspace/.gopath/pkg/mod" &&
+              /usr/local/go/bin/go version &&
+              cp -R /src/. /workspace &&
+              cd /workspace &&
+              mkdir -p /workspace/bin &&
+              CGO_ENABLED=0 GOOS=linux GOARCH=amd64 /usr/local/go/bin/go build -mod=mod -o /workspace/bin/bot-engine ./cmd/bot-engine
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 600m
+              memory: 1Gi
+          volumeMounts:
+            - name: bot-engine-source
+              mountPath: /src
+              readOnly: true
+            - name: workspace
+              mountPath: /workspace
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: bot-engine
+          image: alpine:3.20
+          imagePullPolicy: IfNotPresent
+          command:
+            - /workspace/bin/bot-engine
+          startupProbe:
+            tcpSocket:
+              port: grpc
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 75m
+              memory: 96Mi
+            limits:
+              cpu: 250m
+              memory: 192Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: bot-engine-source
+              mountPath: /src
+              readOnly: true
+            - name: workspace
+              mountPath: /workspace
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: bot-engine-source
+          configMap:
+            name: bot-engine-source
+            items:
+              - key: go.mod
+                path: go.mod
+              - key: main.go
+                path: cmd/bot-engine/main.go
+              - key: easy.go
+                path: internal/games/chess/easy.go
+              - key: telemetry.go
+                path: internal/observability/telemetry.go
+              - key: strategy_engine.pb.go
+                path: proto/strategyv1/strategy_engine.pb.go
+              - key: strategy_engine_grpc.pb.go
+                path: proto/strategyv1/strategy_engine_grpc.pb.go
+        - name: workspace
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

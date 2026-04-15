@@ -1,0 +1,64 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: geek-hub
+build:
+  local:
+    push: false
+  artifacts:
+    - image: geek-hub-portal-web
+      context: apps/portal-web
+      docker:
+        dockerfile: Dockerfile
+        buildArgs:
+          VITE_BACKEND_URL: ""
+    - image: geek-hub-games-web
+      context: apps/games-web
+      docker:
+        dockerfile: Dockerfile
+        buildArgs:
+          VITE_BACKEND_URL: ""
+    - image: geek-hub-realtime-gateway
+      context: services/realtime-gateway
+      docker:
+        dockerfile: Dockerfile
+    - image: geek-hub-match-core
+      context: services/match-core
+      docker:
+        dockerfile: Dockerfile
+    - image: geek-hub-bot-engine
+      context: services/bot-engine
+      docker:
+        dockerfile: Dockerfile
+manifests:
+  kustomize:
+    paths:
+      - k8s/overlays/local
+deploy:
+  kubectl: {}
+portForward:
+  - resourceType: service
+    resourceName: portal-web
+    namespace: chess-dev
+    port: 80
+    localPort: 8080
+  - resourceType: service
+    resourceName: games-web
+    namespace: chess-dev
+    port: 80
+    localPort: 8081
+  - resourceType: service
+    resourceName: realtime-gateway
+    namespace: chess-dev
+    port: 3000
+    localPort: 3000
+  - resourceType: service
+    resourceName: match-core
+    namespace: chess-dev
+    port: 50052
+    localPort: 50052
+  - resourceType: service
+    resourceName: bot-engine
+    namespace: chess-dev
+    port: 50051
+    localPort: 50051

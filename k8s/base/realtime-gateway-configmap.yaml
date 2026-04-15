@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: realtime-gateway-config
+  labels:
+    app.kubernetes.io/name: geek-hub
+    app.kubernetes.io/component: realtime-gateway
+data:
+  PORT: "3000"
+  APP_ENV: "production"
+  LOG_LEVEL: "INFO"
+  ROOM_CLOCK_SECONDS: "600"
+  MATCH_CORE_HOST: "match-core"
+  MATCH_CORE_PORT: "50052"
+  MATCH_CORE_TIMEOUT_MS: "2500"
+  ALLOWED_ORIGINS: "http://localhost:5173,http://chess.local,http://chess.example.local"

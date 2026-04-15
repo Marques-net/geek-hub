@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: games-web
+  labels:
+    app.kubernetes.io/name: geek-hub
+    app.kubernetes.io/component: games-web
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: geek-hub
+    app.kubernetes.io/component: games-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

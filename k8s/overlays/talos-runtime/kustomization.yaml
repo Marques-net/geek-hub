@@ -1,0 +1,92 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: chess-dev
+resources:
+  - ../../base
+  - portal-web-external-service.yaml
+  - networkpolicy-portal-web-external.yaml
+patches:
+  - path: ingress-patch.yaml
+  - path: realtime-gateway-deployment-patch.yaml
+  - path: match-core-deployment-patch.yaml
+  - path: bot-engine-deployment-patch.yaml
+  - path: portal-web-deployment-patch.yaml
+  - path: games-web-deployment-patch.yaml
+  - path: networkpolicy-realtime-gateway-egress-patch.yaml
+  - path: networkpolicy-match-core-egress-patch.yaml
+generatorOptions:
+configMapGenerator:
+  - name: match-core-source
+    files:
+      - go.mod=source/match-core/go.mod
+      - main.go=source/match-core/cmd/match-core/main.go
+      - bot_client.go=source/match-core/internal/games/chess/bot_client.go
+      - config.go=source/match-core/internal/games/chess/config.go
+      - metrics.go=source/match-core/internal/games/chess/metrics.go
+      - service.go=source/match-core/internal/games/chess/service.go
+      - store.go=source/match-core/internal/games/chess/store.go
+      - types.go=source/match-core/internal/games/chess/types.go
+      - runtime.go=source/match-core/internal/platform/runtime.go
+      - telemetry.go=source/match-core/internal/observability/telemetry.go
+      - match_core.pb.go=source/match-core/proto/matchcore/match_core.pb.go
+      - match_core_grpc.pb.go=source/match-core/proto/matchcore/match_core_grpc.pb.go
+      - strategy_engine.pb.go=source/match-core/proto/strategyv1/strategy_engine.pb.go
+      - strategy_engine_grpc.pb.go=source/match-core/proto/strategyv1/strategy_engine_grpc.pb.go
+  - name: realtime-gateway-source
+    files:
+      - go.mod=source/realtime-gateway/go.mod
+      - main.go=source/realtime-gateway/cmd/realtime-gateway/main.go
+      - config.go=source/realtime-gateway/internal/gateway/config.go
+      - matchcore_client.go=source/realtime-gateway/internal/gateway/matchcore_client.go
+      - metrics.go=source/realtime-gateway/internal/gateway/metrics.go
+      - socket_server.go=source/realtime-gateway/internal/gateway/socket_server.go
+      - types.go=source/realtime-gateway/internal/gateway/types.go
+      - telemetry.go=source/realtime-gateway/internal/observability/telemetry.go
+      - match_core.pb.go=source/realtime-gateway/proto/matchcore/match_core.pb.go
+      - match_core_grpc.pb.go=source/realtime-gateway/proto/matchcore/match_core_grpc.pb.go
+  - name: bot-engine-source
+    files:
+      - go.mod=source/bot-engine/go.mod
+      - main.go=source/bot-engine/cmd/bot-engine/main.go
+      - easy.go=source/bot-engine/internal/games/chess/easy.go
+      - telemetry.go=source/bot-engine/internal/observability/telemetry.go
+      - strategy_engine.pb.go=source/bot-engine/proto/strategyv1/strategy_engine.pb.go
+      - strategy_engine_grpc.pb.go=source/bot-engine/proto/strategyv1/strategy_engine_grpc.pb.go
+  - name: portal-web-source
+    files:
+      - package.json=source/portal-web/package.json
+      - tsconfig.json=source/portal-web/tsconfig.json
+      - tsconfig.node.json=source/portal-web/tsconfig.node.json
+      - vite.config.ts=source/portal-web/vite.config.ts
+      - index.html=source/portal-web/index.html
+      - App.tsx=source/portal-web/src/App.tsx
+      - GameMenu.tsx=source/portal-web/src/components/GameMenu.tsx
+      - GameView.tsx=source/portal-web/src/components/GameView.tsx
+      - GoogleSignInButton.tsx=source/portal-web/src/components/GoogleSignInButton.tsx
+      - HomeView.tsx=source/portal-web/src/components/HomeView.tsx
+      - Lobby.tsx=source/portal-web/src/components/Lobby.tsx
+      - config.ts=source/portal-web/src/lib/config.ts
+      - client-context.ts=source/portal-web/src/lib/client-context.ts
+      - storage.ts=source/portal-web/src/lib/storage.ts
+      - main.tsx=source/portal-web/src/main.tsx
+      - styles.css=source/portal-web/src/styles.css
+      - types.ts=source/portal-web/src/types.ts
+      - vite-env.d.ts=source/portal-web/src/vite-env.d.ts
+  - name: games-web-source
+    files:
+      - package.json=source/games-web/package.json
+      - tsconfig.json=source/games-web/tsconfig.json
+      - tsconfig.node.json=source/games-web/tsconfig.node.json
+      - vite.config.ts=source/games-web/vite.config.ts
+      - index.html=source/games-web/index.html
+      - App.tsx=source/games-web/src/App.tsx
+      - ChessGame.tsx=source/games-web/src/games/chess/ChessGame.tsx
+      - GameView.tsx=source/games-web/src/components/GameView.tsx
+      - Lobby.tsx=source/games-web/src/components/Lobby.tsx
+      - config.ts=source/games-web/src/lib/config.ts
+      - client-context.ts=source/games-web/src/lib/client-context.ts
+      - storage.ts=source/games-web/src/lib/storage.ts
+      - main.tsx=source/games-web/src/main.tsx
+      - styles.css=source/games-web/src/styles.css
+      - types.ts=source/games-web/src/types.ts
+      - vite-env.d.ts=source/games-web/src/vite-env.d.ts

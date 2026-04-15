@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - realtime-gateway-configmap.yaml
+  - geek-hub-secret.yaml
+  - portal-web-deployment.yaml
+  - portal-web-service.yaml
+  - games-web-deployment.yaml
+  - games-web-service.yaml
+  - realtime-gateway-deployment.yaml
+  - realtime-gateway-service.yaml
+  - realtime-gateway-servicemonitor.yaml
+  - match-core-deployment.yaml
+  - match-core-service.yaml
+  - match-core-servicemonitor.yaml
+  - bot-engine-deployment.yaml
+  - bot-engine-service.yaml
+  - redis-service.yaml
+  - redis-pvc.yaml
+  - redis-statefulset.yaml
+  - ingress.yaml
+  - networkpolicy.yaml

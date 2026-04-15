@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package games.matchcore.v1;
+option go_package = "github.com/Marques-net/geek-hub/services/match-core/proto/matchcore;matchcorev1";
+
+message RoomRequest {
+  string game_type = 1;
+  string room_code = 2;
+  string nickname = 3;
+  string player_token = 4;
+  string spectator_token = 5;
+  string mode = 6;
+  string clock_control = 7;
+  string action_type = 8;
+  string action_payload_json = 9;
+}
+
+message RoomResponse {
+  bool ok = 1;
+  string code = 2;
+  string message = 3;
+  int32 status_code = 4;
+  string snapshot_json = 5;
+  string session_json = 6;
+  bool left = 7;
+}
+
+message TickRequest {}
+
+message TickResponse {
+  repeated string snapshots_json = 1;
+}
+
+service MatchCoreService {
+  rpc Ready(TickRequest) returns (RoomResponse);
+  rpc CreateRoom(RoomRequest) returns (RoomResponse);
+  rpc JoinRoom(RoomRequest) returns (RoomResponse);
+  rpc LeaveRoom(RoomRequest) returns (RoomResponse);
+  rpc SyncState(RoomRequest) returns (RoomResponse);
+  rpc SubmitAction(RoomRequest) returns (RoomResponse);
+  rpc Resign(RoomRequest) returns (RoomResponse);
+  rpc OfferDraw(RoomRequest) returns (RoomResponse);
+  rpc AcceptDraw(RoomRequest) returns (RoomResponse);
+  rpc DeclineDraw(RoomRequest) returns (RoomResponse);
+  rpc MarkDisconnected(RoomRequest) returns (RoomResponse);
+  rpc TickActiveRooms(TickRequest) returns (TickResponse);
+}

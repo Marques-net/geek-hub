@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: match-core
+  labels:
+    app.kubernetes.io/name: geek-hub
+    app.kubernetes.io/component: match-core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: geek-hub
+      app.kubernetes.io/component: match-core
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: geek-hub
+        app.kubernetes.io/component: match-core
+        app.kubernetes.io/part-of: geek-hub
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: match-core
+          image: geek-hub-match-core:dev
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PORT
+              value: "50052"
+            - name: METRICS_PORT
+              value: "9090"
+            - name: APP_ENV
+              value: "production"
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_KEY_PREFIX
+              value: "geek-hub"
+            - name: GAME_TTL_SECONDS
+              value: "86400"
+            - name: ROOM_CLOCK_SECONDS
+              value: "600"
+            - name: BOT_ENGINE_HOST
+              value: "bot-engine"
+            - name: BOT_ENGINE_PORT
+              value: "50051"
+            - name: BOT_ENGINE_TIMEOUT_MS
+              value: "1500"
+            - name: OTEL_SERVICE_NAME
+              value: "geek-hub-match-core"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "tempo.monitoring.svc.cluster.local:4317"
+            - name: OTEL_EXPORTER_OTLP_INSECURE
+              value: "true"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+          envFrom:
+            - secretRef:
+                name: geek-hub-secret
+          ports:
+            - name: grpc
+              containerPort: 50052
+            - name: metrics
+              containerPort: 9090
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

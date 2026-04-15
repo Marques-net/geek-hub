@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: chess-dev
+resources:
+  - ../../base
+patches:
+  - path: ingress-patch.yaml
+  - path: realtime-gateway-configmap-patch.yaml
+images:
+  - name: geek-hub-portal-web
+    newName: geek-hub-portal-web
+    newTag: dev
+  - name: geek-hub-games-web
+    newName: geek-hub-games-web
+    newTag: dev
+  - name: geek-hub-realtime-gateway
+    newName: geek-hub-realtime-gateway
+    newTag: dev
+  - name: geek-hub-match-core
+    newName: geek-hub-match-core
+    newTag: dev
+  - name: geek-hub-bot-engine
+    newName: geek-hub-bot-engine
+    newTag: dev

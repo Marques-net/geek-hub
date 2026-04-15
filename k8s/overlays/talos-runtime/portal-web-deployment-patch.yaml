@@ -1,0 +1,153 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-web
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: portal-web-build
+          image: node:20-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -lc
+          args:
+            - >
+              cp -R /src/. /workspace &&
+              cd /workspace &&
+              npm install --include=dev --no-audit --no-fund
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: portal-web-source
+              mountPath: /src
+              readOnly: true
+            - name: workspace
+              mountPath: /workspace
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: portal-web
+          image: node:20-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: VITE_GOOGLE_CLIENT_ID
+              value: "314374273482-mre51bg4m5aeu3ect8j6tch2qm6rsk6m.apps.googleusercontent.com"
+            - name: VITE_PROXY_BACKEND_URL
+              value: "http://realtime-gateway:3000"
+            - name: VITE_PROXY_GAMES_WEB_URL
+              value: "http://games-web:80"
+          command:
+            - /bin/sh
+            - -lc
+          args:
+            - >
+              cd /workspace &&
+              printf 'VITE_GOOGLE_CLIENT_ID=%s\n' "$VITE_GOOGLE_CLIENT_ID" > .env.local &&
+              npm run dev -- --host 0.0.0.0 --port 8080
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: portal-web-source
+              mountPath: /src
+              readOnly: true
+            - name: workspace
+              mountPath: /workspace
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: portal-web-source
+          configMap:
+            name: portal-web-source
+            items:
+              - key: package.json
+                path: package.json
+              - key: tsconfig.json
+                path: tsconfig.json
+              - key: tsconfig.node.json
+                path: tsconfig.node.json
+              - key: vite.config.ts
+                path: vite.config.ts
+              - key: index.html
+                path: index.html
+              - key: App.tsx
+                path: src/App.tsx
+              - key: GameMenu.tsx
+                path: src/components/GameMenu.tsx
+              - key: GameView.tsx
+                path: src/components/GameView.tsx
+              - key: GoogleSignInButton.tsx
+                path: src/components/GoogleSignInButton.tsx
+              - key: HomeView.tsx
+                path: src/components/HomeView.tsx
+              - key: Lobby.tsx
+                path: src/components/Lobby.tsx
+              - key: config.ts
+                path: src/lib/config.ts
+              - key: client-context.ts
+                path: src/lib/client-context.ts
+              - key: storage.ts
+                path: src/lib/storage.ts
+              - key: main.tsx
+                path: src/main.tsx
+              - key: styles.css
+                path: src/styles.css
+              - key: types.ts
+                path: src/types.ts
+              - key: vite-env.d.ts
+                path: src/vite-env.d.ts
+        - name: workspace
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

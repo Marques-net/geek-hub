@@ -1,0 +1,50 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: geek-hub
+  labels:
+    app.kubernetes.io/name: geek-hub
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: chess.example.local
+      http:
+        paths:
+          - path: /socket.io
+            pathType: Prefix
+            backend:
+              service:
+                name: realtime-gateway
+                port:
+                  number: 3000
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: realtime-gateway
+                port:
+                  number: 3000
+          - path: /games
+            pathType: Prefix
+            backend:
+              service:
+                name: games-web
+                port:
+                  number: 80
+          - path: /chess
+            pathType: Prefix
+            backend:
+              service:
+                name: games-web
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: portal-web
+                port:
+                  number: 80
