@@ -7,6 +7,7 @@ resources:
   - networkpolicy-portal-web-external.yaml
 patches:
   - path: ingress-patch.yaml
+  - path: login-service-deployment-patch.yaml
   - path: realtime-gateway-deployment-patch.yaml
   - path: match-core-deployment-patch.yaml
   - path: bot-engine-deployment-patch.yaml
@@ -16,6 +17,14 @@ patches:
   - path: networkpolicy-match-core-egress-patch.yaml
 generatorOptions:
 configMapGenerator:
+  - name: login-service-source
+    files:
+      - go.mod=source/login-service/go.mod
+      - main.go=source/login-service/cmd/login-service/main.go
+      - config.go=source/login-service/internal/login/config.go
+      - metrics.go=source/login-service/internal/login/metrics.go
+      - repository.go=source/login-service/internal/login/repository.go
+      - telemetry.go=source/login-service/internal/observability/telemetry.go
   - name: match-core-source
     files:
       - go.mod=source/match-core/go.mod

@@ -5,7 +5,7 @@ Monorepo local para um hub de jogos iniciado a partir da evolucao mais recente e
 ## Visao Geral
 
 - `geek-hub` separa portal, host de jogos e servicos Go especializados.
-- O fluxo atual cobre autenticacao local/Google, menu central, xadrez online, bots, Redis, observabilidade e manifests Kubernetes.
+- O fluxo atual cobre autenticacao local/Google, menu central, xadrez online, bots, Redis, observabilidade, telemetria basica do dispositivo no login e manifests Kubernetes.
 - O repositorio foi preparado para revisao local: sem `node_modules`, sem `dist`, sem cache Go e com documentacao concentrada aqui no `README`.
 
 ## Diagrama Logico
@@ -14,16 +14,20 @@ Monorepo local para um hub de jogos iniciado a partir da evolucao mais recente e
 flowchart LR
     U[Browser] --> P[portal-web]
     U --> G[games-web]
+    P --> L[login-service]
     P --> G
     G --> R[realtime-gateway]
     R --> M[match-core]
     M --> B[bot-engine]
+    L --> MG[(MongoDB login events + device telemetry)]
     M --> D[(Redis)]
+    L --> O[Prometheus / Loki / Tempo]
     R --> O[Prometheus / Loki / Tempo]
     M --> O
     B --> O
     K[Kubernetes / Ingress / MetalLB] --> P
     K --> G
+    K --> L
     K --> R
 ```
 
@@ -43,6 +47,7 @@ flowchart TD
     APPS --> PORTAL[portal-web]
     APPS --> GAMES[games-web]
 
+    SERVICES --> LS[login-service]
     SERVICES --> RT[realtime-gateway]
     SERVICES --> MC[match-core]
     SERVICES --> BE[bot-engine]
@@ -56,9 +61,10 @@ flowchart TD
 
 | Componente | Pasta | Responsabilidade |
 | --- | --- | --- |
-| Portal Web | `apps/portal-web` | Porta de entrada do hub, login Google/local, persistencia de sessao e menu principal de jogos. |
+| Portal Web | `apps/portal-web` | Porta de entrada do hub, login Google/local, captura de contexto do navegador/dispositivo, persistencia de sessao e menu principal de jogos. |
 | Games Web | `apps/games-web` | Host frontend dos jogos; hoje publica o modulo de xadrez em `/games/chess`. |
-| Realtime Gateway | `services/realtime-gateway` | API HTTP/WebSocket, Socket.IO, sinalizacao WebRTC, health checks e metricas de borda. |
+| Login Service | `services/login-service` | API de login Google, validacao do payload, gravacao do perfil basico e da telemetria do dispositivo no MongoDB, readiness e observabilidade do fluxo de autenticacao. |
+| Realtime Gateway | `services/realtime-gateway` | API HTTP/WebSocket do jogo, Socket.IO, sinalizacao WebRTC, health checks e metricas de borda. |
 | Match Core | `services/match-core` | Runtime autoritativo das partidas, regras do xadrez, relogio, sincronizacao de estado e integracao com Redis/bot. |
 | Bot Engine | `services/bot-engine` | Motor de estrategia para modos de treino, exposto via gRPC. |
 | Proto | `proto` | Contratos gRPC entre `realtime-gateway`, `match-core` e `bot-engine`. |
@@ -75,6 +81,7 @@ flowchart TD
 
 - Centraliza a autenticacao e o menu do hub.
 - Salva `authSession` e sessao de sala no storage local.
+- Coleta telemetria basica do cliente no momento do login Google.
 - Encaminha o usuario para o xadrez e prepara a UX para jogos futuros.
 
 Arquivos-chave:
@@ -103,6 +110,18 @@ Arquivos-chave:
 - `cmd/realtime-gateway/main.go`: bootstrap HTTP e lifecycle.
 - `internal/gateway/socket_server.go`: eventos Socket.IO e ticker.
 - `internal/gateway/matchcore_client.go`: cliente gRPC do `match-core`.
+
+### `services/login-service`
+
+- Exponibiliza `/api/auth/logins`, `/metrics`, `/health/live`, `/health/ready` e `/api/info`.
+- Valida o payload do login Google e grava os eventos na collection `geek_hub.user_login_events`.
+- Persiste dados de dispositivo e navegador, como `deviceType`, `platform`, `browser`, `region`, `deviceModel`, `browserVersion` e `platformVersion`.
+- Centraliza a observabilidade e o readiness do fluxo de autenticacao.
+
+Arquivos-chave:
+- `cmd/login-service/main.go`: bootstrap HTTP e lifecycle do servico.
+- `internal/login/repository.go`: persistencia MongoDB e indices da collection.
+- `internal/login/config.go`: configuracao de conexao com Mongo e parametros do servico.
 
 ### `services/match-core`
 
@@ -154,6 +173,7 @@ geek-hub/
 ├── proto/
 ├── services/
 │   ├── bot-engine/
+│   ├── login-service/
 │   ├── match-core/
 │   └── realtime-gateway/
 ├── tests/
@@ -166,11 +186,12 @@ geek-hub/
 ## Fluxo Da Aplicacao
 
 1. O usuario entra em `portal-web` e autentica com Google ou visitante.
-2. O portal redireciona para `games-web`, hoje com o modulo de xadrez.
-3. O cliente abre um canal Socket.IO com `realtime-gateway`.
-4. O gateway delega comandos de sala e partida ao `match-core`.
-5. O `match-core` persiste estado no Redis e chama o `bot-engine` quando necessario.
-6. Metricas e traces ficam prontos para Prometheus, Loki e Tempo.
+2. Quando o login Google e usado, o portal registra no `login-service` o perfil basico e a telemetria do navegador/dispositivo.
+3. O portal redireciona para `games-web`, hoje com o modulo de xadrez.
+4. O cliente abre um canal Socket.IO com `realtime-gateway`.
+5. O gateway delega comandos de sala e partida ao `match-core`.
+6. O `match-core` persiste estado no Redis e chama o `bot-engine` quando necessario.
+7. Metricas e traces ficam prontos para Prometheus, Loki e Tempo.
 
 ## Como Rodar
 
@@ -212,7 +233,7 @@ skaffold dev
 - Namespace padrao: `chess-dev`
 - Host funcional previsto: `chess.local`
 - Ingress e services ficam em `k8s/base`
-- ServiceMonitors para `realtime-gateway` e `match-core` ja estao presentes
+- ServiceMonitors para `login-service`, `realtime-gateway` e `match-core` ja estao presentes
 - Os servicos Go ja expoem health checks, metricas e tracing OTLP
 
 ## Origem Da Base

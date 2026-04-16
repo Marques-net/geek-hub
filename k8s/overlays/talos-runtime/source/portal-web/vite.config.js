@@ -1,5 +1,9 @@
+var _a, _b, _c;
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+var backendProxyTarget = (_a = process.env.VITE_PROXY_BACKEND_URL) !== null && _a !== void 0 ? _a : "http://127.0.0.1:3000";
+var loginProxyTarget = (_b = process.env.VITE_PROXY_LOGIN_BACKEND_URL) !== null && _b !== void 0 ? _b : "http://127.0.0.1:3001";
+var gamesWebProxyTarget = (_c = process.env.VITE_PROXY_GAMES_WEB_URL) !== null && _c !== void 0 ? _c : "http://127.0.0.1:5180";
 export default defineConfig({
     plugins: [react()],
     server: {
@@ -7,17 +11,21 @@ export default defineConfig({
         host: "0.0.0.0",
         port: 5173,
         proxy: {
+            "/api/auth": {
+                target: loginProxyTarget,
+                changeOrigin: true
+            },
             "/api": {
-                target: "http://127.0.0.1:3000",
+                target: backendProxyTarget,
                 changeOrigin: true
             },
             "/socket.io": {
-                target: "ws://127.0.0.1:3000",
+                target: backendProxyTarget,
                 changeOrigin: true,
                 ws: true
             },
-            "/chess": {
-                target: "http://127.0.0.1:5180",
+            "/games": {
+                target: gamesWebProxyTarget,
                 changeOrigin: true,
                 ws: true
             }

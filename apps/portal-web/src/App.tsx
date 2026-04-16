@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 
 import { GameMenu } from "./components/GameMenu";
 import { HomeView } from "./components/HomeView";
+import { getClientTelemetry } from "./lib/client-context";
 import {
   clearAuthSession,
   clearSession,
@@ -31,6 +32,41 @@ const openChessFrontend = (): void => {
   window.location.assign(CHESS_PATH);
 };
 
+const persistGoogleLogin = async (authSession: AuthSession): Promise<void> => {
+  const client = await getClientTelemetry();
+  const response = await fetch("/api/auth/logins", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      provider: authSession.provider,
+      sub: authSession.sub,
+      name: authSession.name,
+      email: authSession.email,
+      client
+    })
+  });
+
+  if (response.ok) {
+    return;
+  }
+
+  let message = "Nao foi possivel registrar o login Google.";
+
+  try {
+    const payload = (await response.json()) as { message?: string };
+    if (typeof payload.message === "string" && payload.message.trim()) {
+      message = payload.message.trim();
+    }
+  } catch {
+    // noop
+  }
+
+  throw new Error(message);
+};
+
 export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => readAuthSession());
   const [screen, setScreen] = useState<PortalScreen>(() => resolveInitialScreen(readAuthSession()));
@@ -39,11 +75,20 @@ export default function App() {
 
   const savedSession = useMemo(() => readSession(), [authSession, screen]);
 
-  const handleAuthSuccess = (nextAuth: AuthSession) => {
-    writeAuthSession(nextAuth);
-    setAuthSession(nextAuth);
+  const handleAuthSuccess = async (nextAuth: AuthSession) => {
+    setPending("Registrando login Google...");
     setError(null);
-    setScreen("menu");
+
+    try {
+      await persistGoogleLogin(nextAuth);
+      writeAuthSession(nextAuth);
+      setAuthSession(nextAuth);
+      setScreen("menu");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Falha ao registrar o login Google.");
+    } finally {
+      setPending(null);
+    }
   };
 
   const handleContinueAsGuest = () => {
@@ -65,7 +110,7 @@ export default function App() {
   };
 
   return (
-    <main className="app-shell">
+    <main className={screen === "home" ? "app-shell app-shell-home" : "app-shell"}>
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
 
@@ -75,7 +120,6 @@ export default function App() {
       {screen === "home" ? (
         <HomeView
           busy={Boolean(pending)}
-          connectionLabel="Portal disponível"
           onAuthSuccess={handleAuthSuccess}
           onAuthError={setError}
           onContinueAsGuest={handleContinueAsGuest}

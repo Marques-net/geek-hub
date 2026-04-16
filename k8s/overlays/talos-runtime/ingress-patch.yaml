@@ -7,6 +7,13 @@ spec:
     - host: chess.local
       http:
         paths:
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: login-service
+                port:
+                  number: 3000
           - path: /socket.io
             pathType: Prefix
             backend:
@@ -44,6 +51,13 @@ spec:
                   number: 80
     - http:
         paths:
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: login-service
+                port:
+                  number: 3000
           - path: /socket.io
             pathType: Prefix
             backend:

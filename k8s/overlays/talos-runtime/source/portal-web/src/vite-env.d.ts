@@ -45,3 +45,27 @@ interface Window {
     };
   };
 }
+
+interface NavigatorUABrandVersion {
+  brand: string;
+  version: string;
+}
+
+interface NavigatorUADataHighEntropyValues {
+  model?: string;
+  platformVersion?: string;
+  fullVersionList?: NavigatorUABrandVersion[];
+}
+
+interface NavigatorUAData {
+  brands: NavigatorUABrandVersion[];
+  mobile: boolean;
+  platform: string;
+  getHighEntropyValues: (
+    hints: Array<"model" | "platformVersion" | "fullVersionList">
+  ) => Promise<NavigatorUADataHighEntropyValues>;
+}
+
+interface Navigator {
+  userAgentData?: NavigatorUAData;
+}

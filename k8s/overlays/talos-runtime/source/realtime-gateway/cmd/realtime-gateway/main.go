@@ -71,15 +71,15 @@ func main() {
 		defer cancel()
 		if err := matchCore.Ready(checkCtx); err != nil {
 			writeJSON(writer, http.StatusServiceUnavailable, map[string]any{
-				"status":   "error",
+				"status":    "error",
 				"matchCore": "unavailable",
-				"message":  err.Error(),
+				"message":   err.Error(),
 			})
 			return
 		}
 
 		writeJSON(writer, http.StatusOK, map[string]any{
-			"status":   "ok",
+			"status":    "ok",
 			"matchCore": "ready",
 		})
 	})

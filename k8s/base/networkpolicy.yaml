@@ -13,6 +13,7 @@ spec:
           - portal-web
           - games-web
           - realtime-gateway
+          - login-service
   policyTypes:
     - Ingress
   ingress:
@@ -44,6 +45,60 @@ spec:
       ports:
         - protocol: TCP
           port: 50052
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchExpressions:
+              - key: k8s-app
+                operator: In
+                values:
+                  - kube-dns
+                  - coredns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: login-service-egress
+  labels:
+    app.kubernetes.io/name: geek-hub
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: geek-hub
+      app.kubernetes.io/component: login-service
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: mongodb
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: mongodb
+              app.kubernetes.io/instance: mongodb
+              app.kubernetes.io/name: mongodb
+      ports:
+        - protocol: TCP
+          port: 27017
+    - to:
+        - ipBlock:
+            cidr: 192.168.0.100/32
+      ports:
+        - protocol: TCP
+          port: 32017
     - to:
         - namespaceSelector:
             matchLabels:
@@ -198,6 +253,28 @@ spec:
     matchLabels:
       app.kubernetes.io/name: geek-hub
       app.kubernetes.io/component: realtime-gateway
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-to-login-service-metrics
+  labels:
+    app.kubernetes.io/name: geek-hub
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: geek-hub
+      app.kubernetes.io/component: login-service
   policyTypes:
     - Ingress
   ingress:

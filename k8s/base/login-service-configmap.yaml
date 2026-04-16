@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: login-service-config
+  labels:
+    app.kubernetes.io/name: geek-hub
+    app.kubernetes.io/component: login-service
+data:
+  PORT: "3000"
+  APP_ENV: "production"
+  LOG_LEVEL: "INFO"
+  MONGODB_HOST: "192.168.0.100"
+  MONGODB_PORT: "32017"
+  MONGODB_DATABASE: "geek_hub"
+  MONGODB_COLLECTION: "user_login_events"
+  MONGODB_AUTH_DATABASE: "admin"
+  MONGODB_CONNECT_TIMEOUT_MS: "2500"

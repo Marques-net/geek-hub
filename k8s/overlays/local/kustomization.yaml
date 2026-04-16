@@ -13,6 +13,9 @@ images:
   - name: geek-hub-games-web
     newName: geek-hub-games-web
     newTag: dev
+  - name: geek-hub-login-service
+    newName: geek-hub-login-service
+    newTag: dev
   - name: geek-hub-realtime-gateway
     newName: geek-hub-realtime-gateway
     newTag: dev

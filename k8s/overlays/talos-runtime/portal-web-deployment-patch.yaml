@@ -52,6 +52,8 @@ spec:
           env:
             - name: VITE_GOOGLE_CLIENT_ID
               value: "314374273482-mre51bg4m5aeu3ect8j6tch2qm6rsk6m.apps.googleusercontent.com"
+            - name: VITE_PROXY_LOGIN_BACKEND_URL
+              value: "http://login-service:3000"
             - name: VITE_PROXY_BACKEND_URL
               value: "http://realtime-gateway:3000"
             - name: VITE_PROXY_GAMES_WEB_URL

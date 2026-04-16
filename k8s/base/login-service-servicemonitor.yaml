@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: login-service
+  labels:
+    app.kubernetes.io/name: geek-hub
+    app.kubernetes.io/component: login-service
+    release: observability-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: geek-hub
+      app.kubernetes.io/component: login-service
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s

@@ -47,6 +47,15 @@ input[type="checkbox"] {
   overflow-y: auto;
 }
 
+.app-shell-home {
+  display: grid;
+  align-items: center;
+  background:
+    radial-gradient(circle at top left, rgba(128, 194, 255, 0.22), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(135, 204, 185, 0.2), transparent 28%),
+    linear-gradient(180deg, #f7fbff 0%, #edf5fb 100%);
+}
+
 .ambient {
   position: absolute;
   border-radius: 999px;
@@ -71,6 +80,18 @@ input[type="checkbox"] {
   background: #4a1407;
 }
 
+.app-shell-home .ambient {
+  opacity: 0.28;
+}
+
+.app-shell-home .ambient-one {
+  background: #bcdcff;
+}
+
+.app-shell-home .ambient-two {
+  background: #d5efe7;
+}
+
 .panel {
   position: relative;
   background: rgba(43, 22, 16, 0.75);
@@ -90,6 +111,35 @@ input[type="checkbox"] {
 .home-panel,
 .lobby-panel {
   padding: 36px;
+}
+
+.home-panel-simple {
+  max-width: 760px;
+  padding: clamp(28px, 5vw, 52px);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(140, 174, 201, 0.26);
+  box-shadow: 0 24px 72px rgba(108, 137, 164, 0.16);
+}
+
+.home-simple,
+.home-simple-copy,
+.home-actions {
+  display: grid;
+}
+
+.home-simple {
+  gap: 28px;
+  justify-items: start;
+}
+
+.home-simple-copy {
+  gap: 16px;
+  max-width: 560px;
+}
+
+.home-actions {
+  gap: 14px;
+  width: min(100%, 360px);
 }
 
 .status-panel {
@@ -149,6 +199,16 @@ h2 {
   line-height: 1.5;
 }
 
+.app-shell-home .home-panel-simple h1 {
+  color: #123047;
+  line-height: 1;
+}
+
+.app-shell-home .home-panel-simple .lead {
+  color: #48657b;
+  font-size: 1.02rem;
+}
+
 .connection-badge,
 .saved-session,
 .form-card,
@@ -197,6 +257,12 @@ h2 {
 .google-button-shell {
   display: grid;
   gap: 12px;
+}
+
+.home-actions .google-button-shell,
+.home-actions .google-button-target,
+.home-actions .button {
+  width: 100%;
 }
 
 .google-button-target {
@@ -415,6 +481,12 @@ input:not([type="checkbox"])::placeholder {
   border: 1px solid rgba(255, 235, 220, 0.14);
 }
 
+.app-shell-home .button-ghost {
+  background: #ffffff;
+  color: #123047;
+  border: 1px solid rgba(118, 145, 166, 0.28);
+}
+
 .button-danger {
   background: linear-gradient(120deg, #ff6f4f, #ff4336);
   color: #fff7f3;
@@ -570,6 +642,10 @@ input:not([type="checkbox"])::placeholder {
   .auth-panel,
   .panel:not(.board-panel):not(.menu-header):not(.auth-panel):not(.home-panel):not(.lobby-panel) {
     padding: 16px;
+  }
+
+  .home-panel-simple {
+    padding: 24px;
   }
 
   .saved-session {

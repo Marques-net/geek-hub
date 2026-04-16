@@ -18,6 +18,10 @@ build:
         dockerfile: Dockerfile
         buildArgs:
           VITE_BACKEND_URL: ""
+    - image: geek-hub-login-service
+      context: services/login-service
+      docker:
+        dockerfile: Dockerfile
     - image: geek-hub-realtime-gateway
       context: services/realtime-gateway
       docker:
@@ -47,6 +51,11 @@ portForward:
     namespace: chess-dev
     port: 80
     localPort: 8081
+  - resourceType: service
+    resourceName: login-service
+    namespace: chess-dev
+    port: 3000
+    localPort: 3001
   - resourceType: service
     resourceName: realtime-gateway
     namespace: chess-dev

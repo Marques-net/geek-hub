@@ -159,9 +159,6 @@ export const GoogleSignInButton = ({ busy, onSuccess, onError }: GoogleSignInBut
     <div className={`google-button-shell${busy ? " google-button-shell-busy" : ""}`}>
       {status === "loading" ? <small>Carregando Google Identity...</small> : null}
       <div ref={buttonRef} className="google-button-target" />
-      {status === "ready" ? (
-        <small>Login Google via Google Identity Services em modo popup.</small>
-      ) : null}
     </div>
   );
 };
