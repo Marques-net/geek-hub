@@ -1,6 +1,6 @@
 # geek-hub
 
-Monorepo local para um hub de jogos iniciado a partir da evolucao mais recente em Go do Chess-MVP encontrada neste workspace. O projeto foi renomeado e organizado para permanecer com a identidade do repositorio `geek-hub`, mantendo o xadrez como primeiro jogo e deixando a base pronta para novos modulos.
+Monorepo local para um hub de jogos iniciado a partir da evolucao mais recente em Go do Chess-MVP encontrada neste workspace. O projeto foi renomeado e organizado para permanecer com a identidade do repositorio `geek-hub`, com xadrez e jogo da velha ativos sobre a mesma plataforma e com a base pronta para novos modulos.
 
 ## Visao Geral
 
@@ -12,23 +12,57 @@ Monorepo local para um hub de jogos iniciado a partir da evolucao mais recente e
 
 ```mermaid
 flowchart LR
-    U[Browser] --> P[portal-web]
-    U --> G[games-web]
-    P --> L[login-service]
+    U[Browser]
+
+    subgraph FE[Frontend]
+        P[portal-web]
+        G[games-web]
+        C[chess module]
+        T[tictactoe module]
+        S[shared room sdk]
+    end
+
+    subgraph BE[Backend]
+        L[login-service]
+        R[realtime-gateway]
+        M[match-core registry]
+        CR[chess runtime]
+        TR[tictactoe runtime]
+        B[bot-engine]
+        CE[chess easy]
+        TE[tictactoe easy]
+    end
+
+    subgraph DATA[Data]
+        MG[(MongoDB login events)]
+        RD[(Redis room state)]
+    end
+
+    subgraph OBS[Observability]
+        O[Prometheus / Loki / Tempo]
+    end
+
+    U --> P
+    P --> L
+    L --> MG
     P --> G
-    G --> R[realtime-gateway]
-    R --> M[match-core]
-    M --> B[bot-engine]
-    L --> MG[(MongoDB login events + device telemetry)]
-    M --> D[(Redis)]
-    L --> O[Prometheus / Loki / Tempo]
-    R --> O[Prometheus / Loki / Tempo]
-    M --> O
-    B --> O
-    K[Kubernetes / Ingress / MetalLB] --> P
-    K --> G
-    K --> L
-    K --> R
+    G --> C
+    G --> T
+    C --> S
+    T --> S
+    S --> R
+    R --> M
+    M --> CR
+    M --> TR
+    CR --> B
+    TR --> B
+    B --> CE
+    B --> TE
+    M --> RD
+    L -.-> O
+    R -.-> O
+    M -.-> O
+    B -.-> O
 ```
 
 ## Diagrama Do Repositorio
@@ -42,19 +76,29 @@ flowchart TD
     ROOT --> K8S[k8s]
     ROOT --> TESTS[tests]
     ROOT --> DOCS[docs]
-    ROOT --> DRAWIO[drawio]
+    ROOT --> DRAWIO[drawio files]
 
     APPS --> PORTAL[portal-web]
     APPS --> GAMES[games-web]
+    GAMES --> CHESSUI[src/games/chess]
+    GAMES --> TTTUI[src/games/tictactoe]
 
     SERVICES --> LS[login-service]
     SERVICES --> RT[realtime-gateway]
     SERVICES --> MC[match-core]
     SERVICES --> BE[bot-engine]
+    MC --> CHESSRT[internal/games/chess]
+    MC --> TTTRT[internal/games/tictactoe]
+    BE --> CHESSBOT[internal/games/chess]
+    BE --> TTTBOT[internal/games/tictactoe]
 
     K8S --> BASE[base]
     K8S --> LOCAL[overlays/local]
     K8S --> TALOS[overlays/talos-runtime]
+
+    DRAWIO --> DG[architecture-geek-hub.drawio]
+    DRAWIO --> DS[architecture-software.drawio]
+    DRAWIO --> DR[architecture-software-refactored.drawio]
 ```
 
 ## Componentes
@@ -67,6 +111,9 @@ flowchart TD
 | Realtime Gateway | `services/realtime-gateway` | API HTTP/WebSocket do jogo, Socket.IO, sinalizacao WebRTC, health checks e metricas de borda. |
 | Match Core | `services/match-core` | Runtime autoritativo das partidas, com registro multi-jogo para xadrez e jogo da velha, relogio, sincronizacao de estado e integracao com Redis/bot. |
 | Bot Engine | `services/bot-engine` | Motor de estrategia para modos de treino, exposto via gRPC, hoje atendendo xadrez e jogo da velha no modo `bot_easy`. |
+| Modulos de jogo | `apps/games-web/src/games` | Implementacoes especificas de cada jogo no frontend, hoje com `chess` e `tictactoe`, mantendo a mesma base de lobby, chat, sessao e navegacao. |
+| Runtimes de jogo | `services/match-core/internal/games` | Adaptadores autoritativos por jogo, cada um com regras, snapshot, persistencia e integracao com bot usando a mesma plataforma. |
+| Estrategias de bot | `services/bot-engine/internal/games` | Heuristicas especificas por jogo para o modo de treino, hoje com estrategia easy para xadrez e jogo da velha. |
 | Proto | `proto` | Contratos gRPC entre `realtime-gateway`, `match-core` e `bot-engine`. |
 | Kubernetes Base | `k8s/base` | Deployments, Services, Ingress, Redis, secrets, network policies e ServiceMonitors. |
 | Overlay Local | `k8s/overlays/local` | Customizacoes para execucao local com imagens `:dev`. |
@@ -82,7 +129,7 @@ flowchart TD
 - Centraliza a autenticacao e o menu do hub.
 - Salva `authSession` e sessao de sala no storage local.
 - Coleta telemetria basica do cliente no momento do login Google.
-- Encaminha o usuario para o xadrez e prepara a UX para jogos futuros.
+- Encaminha o usuario para xadrez e jogo da velha, preservando o contexto da sessao entre modulos.
 
 Arquivos-chave:
 - `src/App.tsx`: alterna entre home e menu.
@@ -102,6 +149,13 @@ Arquivos-chave:
 - `src/games/tictactoe/TicTacToeGame.tsx`: fluxo principal do jogo da velha.
 - `src/components/GameView.tsx`: tabuleiro, acoes e estado visual do xadrez.
 - `src/components/TicTacToeView.tsx`: tabuleiro, acoes e estado visual do jogo da velha.
+- `src/components/Lobby.tsx`: casca comum de lobby, chat e acoes de entrada reaproveitada pelos dois jogos.
+
+### Modulos de jogo
+
+- `chess`: cliente completo do xadrez com tabuleiro 8x8, historico SAN, relogio opcional, treino e jogo online.
+- `tictactoe`: cliente do jogo da velha com tabuleiro 3x3, mesma malha de lobby, chat, treino, WebRTC e observabilidade.
+- Ambos compartilham storage local, reconexao de sala, chamadas Socket.IO e navegacao a partir do portal.
 
 ### `services/realtime-gateway`
 
@@ -166,6 +220,18 @@ Arquivos-chave:
 - Verifica o fluxo "continuar como visitante" ate o menu do hub.
 - Serve como smoke test rapido da camada web.
 
+## Matriz De Funcionalidades
+
+| Funcionalidade | Xadrez | Jogo da Velha | Componentes envolvidos |
+| --- | --- | --- | --- |
+| Login portal + retomada de sessao | Sim | Sim | `portal-web`, `games-web`, storage local |
+| Treino contra `bot_easy` | Sim | Sim | `games-web`, `realtime-gateway`, `match-core`, `bot-engine` |
+| Jogo online PvP | Sim | Sim | `games-web`, `realtime-gateway`, `match-core` |
+| Chat da sala | Sim | Sim | `games-web`, `realtime-gateway` |
+| Sinalizacao WebRTC entre jogadores | Sim | Sim | `games-web`, `realtime-gateway` |
+| Persistencia de salas e relogios | Sim | Sim | `match-core`, `Redis` |
+| Metricas, logs e traces | Sim | Sim | `login-service`, `realtime-gateway`, `match-core`, `bot-engine` |
+
 ## Estrutura
 
 ```text
@@ -199,7 +265,7 @@ geek-hub/
 3. O portal redireciona para `games-web`, hoje com os modulos de xadrez e jogo da velha.
 4. O cliente abre um canal Socket.IO com `realtime-gateway`.
 5. O gateway delega comandos de sala e partida ao `match-core`.
-6. O `match-core` persiste estado no Redis e chama o `bot-engine` quando necessario.
+6. O `match-core` resolve o runtime do jogo (`chess` ou `tictactoe`), persiste estado no Redis e chama o `bot-engine` quando necessario.
 7. Metricas e traces ficam prontos para Prometheus, Loki e Tempo.
 
 ## Como Rodar

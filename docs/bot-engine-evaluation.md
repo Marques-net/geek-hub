@@ -2,27 +2,28 @@
 
 ## Status
 
-A engine de bot foi separada do núcleo da partida e passou a rodar como um serviço dedicado:
+A engine de bot foi separada do nucleo da partida e roda como um servico dedicado multi-jogo:
 
 - contrato entre componentes em protobuf: [`proto/strategy_engine.proto`](../proto/strategy_engine.proto)
 - serviço dedicado da engine: [`services/bot-engine/cmd/bot-engine/main.go`](../services/bot-engine/cmd/bot-engine/main.go)
-- cliente gRPC no núcleo da partida: [`services/match-core/internal/games/chess/bot_client.go`](../services/match-core/internal/games/chess/bot_client.go)
-- núcleo autoritativo: [`services/match-core/internal/games/chess/service.go`](../services/match-core/internal/games/chess/service.go)
+- clientes gRPC por runtime: [`services/match-core/internal/games/chess/bot_client.go`](../services/match-core/internal/games/chess/bot_client.go) e [`services/match-core/internal/games/tictactoe/bot_client.go`](../services/match-core/internal/games/tictactoe/bot_client.go)
+- nucleo autoritativo multi-jogo: [`services/match-core/cmd/match-core/main.go`](../services/match-core/cmd/match-core/main.go)
+- estrategias atuais: [`services/bot-engine/internal/games/chess/easy.go`](../services/bot-engine/internal/games/chess/easy.go) e [`services/bot-engine/internal/games/tictactoe/easy.go`](../services/bot-engine/internal/games/tictactoe/easy.go)
 
 ## Boundary
 
-O `match-core` continua responsável por:
+O `match-core` continua responsavel por:
 
-- validar regras do xadrez com `chess.js`
+- validar as regras de cada jogo no runtime correto
 - controlar turno, relógio e término da partida
 - persistir estado no Redis
 - publicar snapshots por Socket.IO
 
-A bot engine passa a ser responsável apenas por:
+A bot engine passa a ser responsavel apenas por:
 
-- receber o estado atual da partida em FEN
-- escolher um lance compatível com o modo solicitado
-- devolver a sugestão de lance em protobuf/gRPC
+- receber o estado atual da partida serializado em `state_json`
+- escolher uma acao compativel com o `game_type` e o modo solicitado
+- devolver a sugestao de acao em protobuf/gRPC
 
 Se a engine devolver um lance inválido, o backend rejeita a resposta e não aplica o movimento.
 
@@ -30,20 +31,32 @@ Se a engine devolver um lance inválido, o backend rejeita a resposta e não apl
 
 O contrato atual é:
 
-- `GetMoveRequest`
+- `GetActionRequest`
+  - `game_type`
   - `room_code`
   - `game_id`
-  - `fen`
+  - `state_json`
   - `mode`
-  - `recent_sans`
+  - `recent_actions`
   - `move_count`
-- `GetMoveResponse`
+- `GetActionResponse`
   - `found`
-  - `from`
-  - `to`
-  - `promotion`
+  - `action_type`
+  - `action_payload_json`
+  - `coach_message`
 
-Isso mantém o acoplamento baixo e permite trocar a implementação da engine sem reescrever o backend.
+Isso mantem o acoplamento baixo e permite adicionar novos jogos sem reescrever o backend nem criar um novo contrato por jogo.
+
+## Cobertura Atual
+
+- `chess`
+  - entrada esperada em `state_json`: FEN atual
+  - resposta easy: movimento com `from`, `to` e `promotion`
+  - coaching: principios de desenvolvimento, centro e seguranca do rei
+- `tictactoe`
+  - entrada esperada em `state_json`: `board` e `turn`
+  - resposta easy: movimento com `cell`
+  - coaching: bloqueio, linha de vitoria, centro, cantos e laterais
 
 ## Language Evaluation
 
@@ -121,6 +134,7 @@ Go é a linguagem mais eficiente aqui no sentido prático: performance suficient
 Estado atual do projeto:
 
 - a bot engine já foi migrada para Go
+- o servico ja atende `chess` e `tictactoe` pelo mesmo endpoint gRPC
 - logs estruturados são emitidos em `stdout` para coleta pelo `promtail`/`loki`
 - traces OTLP são enviados para o `tempo`
 
