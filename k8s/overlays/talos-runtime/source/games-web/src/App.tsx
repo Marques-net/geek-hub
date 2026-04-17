@@ -1,4 +1,5 @@
 import { ChessGame } from "./games/chess/ChessGame";
+import { TicTacToeGame } from "./games/tictactoe/TicTacToeGame";
 
 type GameModule = {
   slug: string;
@@ -11,6 +12,11 @@ const gameModules: GameModule[] = [
     slug: "chess",
     title: "Xadrez Online",
     render: () => <ChessGame />
+  },
+  {
+    slug: "tictactoe",
+    title: "Jogo da Velha",
+    render: () => <TicTacToeGame />
   }
 ];
 
@@ -23,6 +29,9 @@ const resolveGameSlug = (): string => {
 
   if (first === "chess") {
     return "chess";
+  }
+  if (first === "tictactoe" || first === "jogo-da-velha") {
+    return "tictactoe";
   }
 
   return "chess";

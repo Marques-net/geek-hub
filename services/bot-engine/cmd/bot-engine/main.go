@@ -12,6 +12,7 @@ import (
 	"time"
 
 	chessengine "github.com/Marques-net/geek-hub/services/bot-engine/internal/games/chess"
+	tictactoeengine "github.com/Marques-net/geek-hub/services/bot-engine/internal/games/tictactoe"
 	"github.com/Marques-net/geek-hub/services/bot-engine/internal/observability"
 	strategyv1 "github.com/Marques-net/geek-hub/services/bot-engine/proto/strategyv1"
 	"go.opentelemetry.io/otel/attribute"
@@ -38,7 +39,6 @@ func (s *strategyEngineServer) GetAction(
 		trace.WithAttributes(
 			attribute.String("games.game_type", req.GetGameType()),
 			attribute.String("game.id", req.GetGameId()),
-			attribute.String("chess.room_code", req.GetRoomCode()),
 			attribute.String("room.code", req.GetRoomCode()),
 			attribute.String("engine.mode", req.GetMode()),
 			attribute.Int64("move.count", int64(req.GetActionCount())),
@@ -46,12 +46,6 @@ func (s *strategyEngineServer) GetAction(
 	)
 	defer span.End()
 
-	if req.GetGameType() != "chess" {
-		err := status.Errorf(grpcCodes.InvalidArgument, "unsupported game type: %s", req.GetGameType())
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "unsupported game type")
-		return nil, err
-	}
 	if req.GetMode() != "bot_easy" {
 		err := status.Errorf(grpcCodes.InvalidArgument, "unsupported strategy mode: %s", req.GetMode())
 		span.RecordError(err)
@@ -59,6 +53,20 @@ func (s *strategyEngineServer) GetAction(
 		return nil, err
 	}
 
+	switch req.GetGameType() {
+	case "chess":
+		return handleChessAction(span, req)
+	case "tictactoe":
+		return handleTicTacToeAction(span, req)
+	default:
+		err := status.Errorf(grpcCodes.InvalidArgument, "unsupported game type: %s", req.GetGameType())
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "unsupported game type")
+		return nil, err
+	}
+}
+
+func handleChessAction(span trace.Span, req *strategyv1.GetActionRequest) (*strategyv1.GetActionResponse, error) {
 	var statePayload struct {
 		FEN string `json:"fen"`
 	}
@@ -79,9 +87,7 @@ func (s *strategyEngineServer) GetAction(
 
 	if move == nil {
 		span.SetAttributes(attribute.Bool("move.found", false))
-		return &strategyv1.GetActionResponse{
-			Found: false,
-		}, nil
+		return &strategyv1.GetActionResponse{Found: false}, nil
 	}
 
 	actionPayload, err := json.Marshal(map[string]string{
@@ -105,6 +111,51 @@ func (s *strategyEngineServer) GetAction(
 		ActionType:        "move",
 		ActionPayloadJson: string(actionPayload),
 		CoachMessage:      "Priorize desenvolver pecas leves, proteger o rei e disputar o centro.",
+	}, nil
+}
+
+func handleTicTacToeAction(span trace.Span, req *strategyv1.GetActionRequest) (*strategyv1.GetActionResponse, error) {
+	var statePayload struct {
+		Board string `json:"board"`
+		Turn  string `json:"turn"`
+	}
+	if err := json.Unmarshal([]byte(req.GetStateJson()), &statePayload); err != nil {
+		err = status.Errorf(grpcCodes.InvalidArgument, "invalid state payload: %v", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalid payload")
+		return nil, err
+	}
+
+	move, err := tictactoeengine.SelectEasyMove(statePayload.Board, statePayload.Turn)
+	if err != nil {
+		err = status.Errorf(grpcCodes.InvalidArgument, "invalid request: %v", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalid request")
+		return nil, err
+	}
+
+	if move == nil {
+		span.SetAttributes(attribute.Bool("move.found", false))
+		return &strategyv1.GetActionResponse{Found: false}, nil
+	}
+
+	actionPayload, err := json.Marshal(map[string]string{
+		"cell": move.Cell,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	span.SetAttributes(
+		attribute.Bool("move.found", true),
+		attribute.String("move.cell", move.Cell),
+	)
+
+	return &strategyv1.GetActionResponse{
+		Found:             true,
+		ActionType:        "move",
+		ActionPayloadJson: string(actionPayload),
+		CoachMessage:      "No jogo da velha, procure completar uma linha, bloquear o adversario e disputar o centro cedo.",
 	}, nil
 }
 

@@ -114,6 +114,8 @@ spec:
                 path: cmd/bot-engine/main.go
               - key: easy.go
                 path: internal/games/chess/easy.go
+              - key: tictactoe_easy.go
+                path: internal/games/tictactoe/easy.go
               - key: telemetry.go
                 path: internal/observability/telemetry.go
               - key: strategy_engine.pb.go

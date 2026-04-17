@@ -117,6 +117,18 @@ spec:
                 path: internal/games/chess/bot_client.go
               - key: types.go
                 path: internal/games/chess/types.go
+              - key: tictactoe_config.go
+                path: internal/games/tictactoe/config.go
+              - key: tictactoe_metrics.go
+                path: internal/games/tictactoe/metrics.go
+              - key: tictactoe_service.go
+                path: internal/games/tictactoe/service.go
+              - key: tictactoe_store.go
+                path: internal/games/tictactoe/store.go
+              - key: tictactoe_bot_client.go
+                path: internal/games/tictactoe/bot_client.go
+              - key: tictactoe_types.go
+                path: internal/games/tictactoe/types.go
               - key: runtime.go
                 path: internal/platform/runtime.go
               - key: telemetry.go

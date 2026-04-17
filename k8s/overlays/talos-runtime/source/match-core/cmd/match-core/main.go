@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Marques-net/geek-hub/services/match-core/internal/games/chess"
+	"github.com/Marques-net/geek-hub/services/match-core/internal/games/tictactoe"
 	"github.com/Marques-net/geek-hub/services/match-core/internal/observability"
 	"github.com/Marques-net/geek-hub/services/match-core/internal/platform"
 	matchcorev1 "github.com/Marques-net/geek-hub/services/match-core/proto/matchcore"
@@ -50,7 +51,6 @@ func (s *server) withCommand(ctx context.Context, name string, req *matchcorev1.
 
 	ctx, span := s.tracer.Start(ctx, name, trace.WithAttributes(
 		attribute.String("games.game_type", runtime.GameType()),
-		attribute.String("chess.room_code", req.GetRoomCode()),
 		attribute.String("room.code", req.GetRoomCode()),
 		attribute.String("mode", req.GetMode()),
 		attribute.String("clock.control", req.GetClockControl()),
@@ -85,8 +85,8 @@ func (s *server) withCommand(ctx context.Context, name string, req *matchcorev1.
 }
 
 func (s *server) Ready(ctx context.Context, _ *matchcorev1.TickRequest) (*matchcorev1.RoomResponse, error) {
-	runtime := s.runtimeFor(chess.GameTypeChess)
-	if runtime == nil {
+	runtimes := s.registry.Values()
+	if len(runtimes) == 0 {
 		return &matchcorev1.RoomResponse{
 			Ok:         false,
 			Code:       "RUNTIME_UNAVAILABLE",
@@ -94,7 +94,18 @@ func (s *server) Ready(ctx context.Context, _ *matchcorev1.TickRequest) (*matchc
 			StatusCode: 500,
 		}, nil
 	}
-	return runtime.Ready(ctx)
+
+	for _, runtime := range runtimes {
+		response, err := runtime.Ready(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if !response.GetOk() {
+			return response, nil
+		}
+	}
+
+	return &matchcorev1.RoomResponse{Ok: true}, nil
 }
 
 func (s *server) CreateRoom(ctx context.Context, req *matchcorev1.RoomRequest) (*matchcorev1.RoomResponse, error) {
@@ -161,20 +172,25 @@ func (s *server) TickActiveRooms(ctx context.Context, _ *matchcorev1.TickRequest
 	ctx, span := s.tracer.Start(ctx, "match_core.tick_active_rooms")
 	defer span.End()
 
-	runtime := s.runtimeFor(chess.GameTypeChess)
-	if runtime == nil {
+	runtimes := s.registry.Values()
+	if len(runtimes) == 0 {
 		span.SetStatus(codes.Error, "runtime unavailable")
 		return &matchcorev1.TickResponse{}, nil
 	}
 
-	response, err := runtime.TickActiveRooms(ctx)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "tick failed")
-		return nil, err
+	snapshots := make([]string, 0)
+	for _, runtime := range runtimes {
+		response, err := runtime.TickActiveRooms(ctx)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "tick failed")
+			return nil, err
+		}
+		snapshots = append(snapshots, response.GetSnapshotsJson()...)
 	}
+
 	span.SetStatus(codes.Ok, "")
-	return response, nil
+	return &matchcorev1.TickResponse{SnapshotsJson: snapshots}, nil
 }
 
 func main() {
@@ -192,24 +208,44 @@ func main() {
 		_ = shutdownTracing(shutdownCtx)
 	}()
 
-	store := chess.NewStore(config)
-	if err := store.Connect(ctx); err != nil {
+	chessStore := chess.NewStore(config)
+	if err := chessStore.Connect(ctx); err != nil {
 		logger.Error("failed to connect redis", "error", err)
 		os.Exit(1)
 	}
-	defer store.Close()
+	defer chessStore.Close()
 
-	botClient, err := chess.NewBotClient(config)
+	chessBotClient, err := chess.NewBotClient(config)
 	if err != nil {
 		logger.Error("failed to create bot engine client", "error", err)
 		os.Exit(1)
 	}
-	defer botClient.Close()
+	defer chessBotClient.Close()
 
-	metrics := chess.NewMetrics()
-	chessRuntime := chess.NewService(config, store, botClient, metrics)
+	tictactoeConfig := tictactoe.LoadConfig()
+	tictactoeStore := tictactoe.NewStore(tictactoeConfig)
+	if err := tictactoeStore.Connect(ctx); err != nil {
+		logger.Error("failed to connect redis for tictactoe", "error", err)
+		os.Exit(1)
+	}
+	defer tictactoeStore.Close()
+
+	tictactoeBotClient, err := tictactoe.NewBotClient(tictactoeConfig)
+	if err != nil {
+		logger.Error("failed to create tictactoe bot engine client", "error", err)
+		os.Exit(1)
+	}
+	defer tictactoeBotClient.Close()
+
+	chessMetrics := chess.NewMetrics()
+	chessRuntime := chess.NewService(config, chessStore, chessBotClient, chessMetrics)
 	if err := chessRuntime.PrimeMetrics(ctx); err != nil {
 		logger.Error("failed to prime room metrics", "error", err)
+	}
+	tictactoeMetrics := tictactoe.NewMetrics()
+	tictactoeRuntime := tictactoe.NewService(tictactoeConfig, tictactoeStore, tictactoeBotClient, tictactoeMetrics)
+	if err := tictactoeRuntime.PrimeMetrics(ctx); err != nil {
+		logger.Error("failed to prime tictactoe room metrics", "error", err)
 	}
 
 	listener, err := net.Listen("tcp", ":"+config.Port)
@@ -226,7 +262,7 @@ func main() {
 	matchcorev1.RegisterMatchCoreServiceServer(grpcServer, &server{
 		logger:   logger,
 		tracer:   observability.Tracer("match-core"),
-		registry: platform.NewRegistry(chessRuntime),
+		registry: platform.NewRegistry(chessRuntime, tictactoeRuntime),
 	})
 
 	metricsMux := http.NewServeMux()

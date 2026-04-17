@@ -3,6 +3,13 @@ import { FormEvent } from "react";
 import { AuthSession, ClientSession } from "../types";
 
 interface LobbyProps {
+  gameLabel: string;
+  gameTitle: string;
+  gameDescription: string;
+  nicknamePlaceholder: string;
+  trainingButtonLabel: string;
+  whiteSeatLabel: string;
+  blackSeatLabel: string;
   authSession: AuthSession | null;
   nickname: string;
   roomCode: string;
@@ -34,6 +41,13 @@ const renderAuthLabel = (authSession: AuthSession | null): string => {
 };
 
 export const Lobby = ({
+  gameLabel,
+  gameTitle,
+  gameDescription,
+  nicknamePlaceholder,
+  trainingButtonLabel,
+  whiteSeatLabel,
+  blackSeatLabel,
   authSession,
   nickname,
   roomCode,
@@ -65,12 +79,9 @@ export const Lobby = ({
     <section className="panel lobby-panel">
       <div className="lobby-topbar">
         <div>
-          <div className="eyebrow">Xadrez Online</div>
-          <h1>Sala, treino ou reconexão</h1>
-          <p className="lead">
-            Escolha como entrar no xadrez. O frontend só renderiza; a regra continua
-            autoritativa no backend.
-          </p>
+          <div className="eyebrow">{gameLabel}</div>
+          <h1>{gameTitle}</h1>
+          <p className="lead">{gameDescription}</p>
         </div>
         <div className="topbar-actions">
           <div className="profile-chip">
@@ -99,9 +110,9 @@ export const Lobby = ({
             <span>
               Sala {savedSession.roomCode} como{" "}
               {savedSession.color === "w"
-                ? "brancas"
+                ? whiteSeatLabel
                 : savedSession.color === "b"
-                  ? "pretas"
+                  ? blackSeatLabel
                   : "espectador"}
               {savedSession.mode === "bot_easy" ? " em treino vs máquina" : ""}
             </span>
@@ -123,7 +134,7 @@ export const Lobby = ({
           <input
             value={nickname}
             maxLength={24}
-            placeholder="Ex.: torre42"
+            placeholder={nicknamePlaceholder}
             onChange={(event) => onNicknameChange(event.target.value)}
           />
         </label>
@@ -156,7 +167,7 @@ export const Lobby = ({
             disabled={busy}
             onClick={() => void onCreateBotRoom()}
           >
-            Treinar vs máquina
+            {trainingButtonLabel}
           </button>
         </div>
       </form>

@@ -5,7 +5,7 @@ Monorepo local para um hub de jogos iniciado a partir da evolucao mais recente e
 ## Visao Geral
 
 - `geek-hub` separa portal, host de jogos e servicos Go especializados.
-- O fluxo atual cobre autenticacao local/Google, menu central, xadrez online, bots, Redis, observabilidade, telemetria basica do dispositivo no login e manifests Kubernetes.
+- O fluxo atual cobre autenticacao local/Google, menu central, xadrez online, jogo da velha online, bots, Redis, observabilidade, telemetria basica do dispositivo no login e manifests Kubernetes.
 - O repositorio foi preparado para revisao local: sem `node_modules`, sem `dist`, sem cache Go e com documentacao concentrada aqui no `README`.
 
 ## Diagrama Logico
@@ -62,11 +62,11 @@ flowchart TD
 | Componente | Pasta | Responsabilidade |
 | --- | --- | --- |
 | Portal Web | `apps/portal-web` | Porta de entrada do hub, login Google/local, captura de contexto do navegador/dispositivo, persistencia de sessao e menu principal de jogos. |
-| Games Web | `apps/games-web` | Host frontend dos jogos; hoje publica o modulo de xadrez em `/games/chess`. |
+| Games Web | `apps/games-web` | Host frontend dos jogos; hoje publica xadrez em `/games/chess` e jogo da velha em `/games/tictactoe`. |
 | Login Service | `services/login-service` | API de login Google, validacao do payload, gravacao do perfil basico e da telemetria do dispositivo no MongoDB, readiness e observabilidade do fluxo de autenticacao. |
 | Realtime Gateway | `services/realtime-gateway` | API HTTP/WebSocket do jogo, Socket.IO, sinalizacao WebRTC, health checks e metricas de borda. |
-| Match Core | `services/match-core` | Runtime autoritativo das partidas, regras do xadrez, relogio, sincronizacao de estado e integracao com Redis/bot. |
-| Bot Engine | `services/bot-engine` | Motor de estrategia para modos de treino, exposto via gRPC. |
+| Match Core | `services/match-core` | Runtime autoritativo das partidas, com registro multi-jogo para xadrez e jogo da velha, relogio, sincronizacao de estado e integracao com Redis/bot. |
+| Bot Engine | `services/bot-engine` | Motor de estrategia para modos de treino, exposto via gRPC, hoje atendendo xadrez e jogo da velha no modo `bot_easy`. |
 | Proto | `proto` | Contratos gRPC entre `realtime-gateway`, `match-core` e `bot-engine`. |
 | Kubernetes Base | `k8s/base` | Deployments, Services, Ingress, Redis, secrets, network policies e ServiceMonitors. |
 | Overlay Local | `k8s/overlays/local` | Customizacoes para execucao local com imagens `:dev`. |
@@ -91,20 +91,24 @@ Arquivos-chave:
 
 ### `apps/games-web`
 
-- Publica o cliente web de xadrez.
+- Publica o cliente web dos jogos do hub.
 - Conecta no `realtime-gateway` via Socket.IO.
 - Mantem estado local de sessao, lobby, chat e sinalizacao WebRTC.
+- Hoje inclui os modulos `chess` e `tictactoe`, reaproveitando a mesma malha de sessao, treino, chat e observabilidade.
 
 Arquivos-chave:
 - `src/App.tsx`: resolve o slug do jogo a partir da rota.
-- `src/games/chess/ChessGame.tsx`: fluxo principal do jogo.
-- `src/components/GameView.tsx`: tabuleiro, acoes e estado visual da partida.
+- `src/games/chess/ChessGame.tsx`: fluxo principal do xadrez.
+- `src/games/tictactoe/TicTacToeGame.tsx`: fluxo principal do jogo da velha.
+- `src/components/GameView.tsx`: tabuleiro, acoes e estado visual do xadrez.
+- `src/components/TicTacToeView.tsx`: tabuleiro, acoes e estado visual do jogo da velha.
 
 ### `services/realtime-gateway`
 
 - Exponibiliza `/socket.io`, `/metrics`, `/health/live`, `/health/ready` e `/api/info`.
 - Faz o papel de gateway entre browser e `match-core`.
 - Instrumenta logs, metricas HTTP e tracing OTEL.
+- Mantem o chat da sala, a sinalizacao WebRTC e o coaching do modo treino para ambos os jogos.
 
 Arquivos-chave:
 - `cmd/realtime-gateway/main.go`: bootstrap HTTP e lifecycle.
@@ -128,11 +132,14 @@ Arquivos-chave:
 - Mantem a logica autoritativa de salas e partidas.
 - Resolve o runtime do jogo e aplica comandos como `create_room`, `join_room`, `submit_action` e `tick_active_rooms`.
 - Persiste snapshots, presenca e relogio no Redis.
+- Hoje registra dois runtimes: `chess` e `tictactoe`.
 
 Arquivos-chave:
 - `cmd/match-core/main.go`: servidor gRPC e endpoint de metricas.
 - `internal/games/chess/service.go`: regras de negocio do xadrez.
+- `internal/games/tictactoe/service.go`: regras de negocio do jogo da velha.
 - `internal/games/chess/store.go`: persistencia em Redis.
+- `internal/games/tictactoe/store.go`: persistencia em Redis com prefixo proprio do jogo da velha.
 - `internal/platform/runtime.go`: registro e resolucao dos runtimes.
 
 ### `services/bot-engine`
@@ -140,10 +147,12 @@ Arquivos-chave:
 - Entrega jogadas de treino para `bot_easy`.
 - Recebe estado da partida via gRPC e devolve a proxima acao recomendada.
 - Ja nasce integrado ao pipeline de tracing/logs.
+- O modo easy do jogo da velha prioriza vitoria imediata, bloqueio, centro, cantos e laterais.
 
 Arquivos-chave:
 - `cmd/bot-engine/main.go`: servidor gRPC do motor.
 - `internal/games/chess/easy.go`: heuristica simples de selecao de lance.
+- `internal/games/tictactoe/easy.go`: heuristica simples de selecao de jogada para o jogo da velha.
 
 ### `k8s`
 
@@ -187,7 +196,7 @@ geek-hub/
 
 1. O usuario entra em `portal-web` e autentica com Google ou visitante.
 2. Quando o login Google e usado, o portal registra no `login-service` o perfil basico e a telemetria do navegador/dispositivo.
-3. O portal redireciona para `games-web`, hoje com o modulo de xadrez.
+3. O portal redireciona para `games-web`, hoje com os modulos de xadrez e jogo da velha.
 4. O cliente abre um canal Socket.IO com `realtime-gateway`.
 5. O gateway delega comandos de sala e partida ao `match-core`.
 6. O `match-core` persiste estado no Redis e chama o `bot-engine` quando necessario.

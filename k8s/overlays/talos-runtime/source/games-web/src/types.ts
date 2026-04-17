@@ -1,5 +1,5 @@
 export type Color = "w" | "b";
-export type GameType = "chess";
+export type GameType = "chess" | "tictactoe";
 export type ViewerRole = "player" | "spectator";
 export type GameMode = "pvp" | "bot_easy";
 export type BotLevel = "easy";
@@ -9,6 +9,7 @@ export type ChatTransport = "webrtc" | "server";
 export type GameStatus =
   | "waiting"
   | "active"
+  | "won"
   | "checkmate"
   | "stalemate"
   | "draw"

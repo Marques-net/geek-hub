@@ -122,6 +122,10 @@ spec:
                 path: src/games/chess/ChessGame.tsx
               - key: GameView.tsx
                 path: src/components/GameView.tsx
+              - key: TicTacToeGame.tsx
+                path: src/games/tictactoe/TicTacToeGame.tsx
+              - key: TicTacToeView.tsx
+                path: src/components/TicTacToeView.tsx
               - key: Lobby.tsx
                 path: src/components/Lobby.tsx
               - key: config.ts

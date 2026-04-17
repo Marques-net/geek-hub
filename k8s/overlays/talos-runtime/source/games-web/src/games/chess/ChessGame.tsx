@@ -83,16 +83,29 @@ const normalizeChatTransport = (message: ChatMessage, transport: ChatTransport):
   transport
 });
 
+const readCurrentGameSession = (): ClientSession | null => {
+  const saved = readSession();
+  if (!saved) {
+    return null;
+  }
+
+  if (!saved.gameType || saved.gameType === GAME_TYPE) {
+    return saved;
+  }
+
+  return null;
+};
+
 export function ChessGame() {
   const [authSession] = useState<AuthSession | null>(() => readAuthSession());
   const [nickname, setNickname] = useState(() => {
-    const savedSession = readSession();
+    const savedSession = readCurrentGameSession();
     const savedAuth = readAuthSession();
     return savedSession?.nickname ?? deriveNickname(savedAuth);
   });
-  const [roomCode, setRoomCode] = useState(() => readSession()?.roomCode ?? "");
+  const [roomCode, setRoomCode] = useState(() => readCurrentGameSession()?.roomCode ?? "");
   const [playWithoutClock, setPlayWithoutClock] = useState(false);
-  const [session, setSession] = useState<ClientSession | null>(() => readSession());
+  const [session, setSession] = useState<ClientSession | null>(() => readCurrentGameSession());
   const [snapshot, setSnapshot] = useState<SnapshotEnvelope | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -625,7 +638,7 @@ export function ChessGame() {
   };
 
   const handleJoinRoom = async () => {
-    const saved = readSession();
+    const saved = readCurrentGameSession();
     const shouldTryReconnect =
       saved &&
       saved.roomCode === roomCode.trim().toUpperCase() &&
@@ -644,7 +657,7 @@ export function ChessGame() {
   };
 
   const handleReconnectSaved = async () => {
-    const saved = readSession();
+    const saved = readCurrentGameSession();
     if (!saved) {
       setError("Nenhuma sessao salva encontrada.");
       return;
@@ -854,7 +867,7 @@ export function ChessGame() {
     window.location.assign(PORTAL_PATH);
   };
 
-  const savedSession = session ?? readSession();
+  const savedSession = session ?? readCurrentGameSession();
   const showSessionSync = Boolean(session && !snapshot);
   const canSendChat = Boolean(session && snapshot && !chatBusy);
   const chatPlaceholder =
@@ -916,6 +929,13 @@ export function ChessGame() {
         </section>
       ) : (
         <Lobby
+          gameLabel="Xadrez Online"
+          gameTitle="Sala, treino ou reconexão"
+          gameDescription="Escolha como entrar no xadrez. O frontend só renderiza; a regra continua autoritativa no backend."
+          nicknamePlaceholder="Ex.: torre42"
+          trainingButtonLabel="Treinar vs máquina"
+          whiteSeatLabel="brancas"
+          blackSeatLabel="pretas"
           authSession={authSession}
           nickname={nickname}
           roomCode={roomCode}

@@ -10,11 +10,12 @@ import {
   readSession,
   writeAuthSession
 } from "./lib/storage";
-import { AuthSession } from "./types";
+import { AuthSession, ClientSession, GameType } from "./types";
 
 type PortalScreen = "home" | "menu";
 
 const CHESS_PATH = "/games/chess/";
+const TICTACTOE_PATH = "/games/tictactoe/";
 
 const createGuestAuthSession = (): AuthSession => ({
   provider: "guest",
@@ -28,8 +29,16 @@ const createGuestAuthSession = (): AuthSession => ({
 const resolveInitialScreen = (authSession: AuthSession | null): PortalScreen =>
   authSession ? "menu" : "home";
 
-const openChessFrontend = (): void => {
-  window.location.assign(CHESS_PATH);
+const resolveGamePath = (gameType: GameType | undefined): string => {
+  if (gameType === "tictactoe") {
+    return TICTACTOE_PATH;
+  }
+
+  return CHESS_PATH;
+};
+
+const openGameFrontend = (gameType: GameType): void => {
+  window.location.assign(resolveGamePath(gameType));
 };
 
 const persistGoogleLogin = async (authSession: AuthSession): Promise<void> => {
@@ -74,6 +83,10 @@ export default function App() {
   const [pending, setPending] = useState<string | null>(null);
 
   const savedSession = useMemo(() => readSession(), [authSession, screen]);
+
+  const handleResumeSavedGame = (session: ClientSession | null) => {
+    openGameFrontend(session?.gameType ?? "chess");
+  };
 
   const handleAuthSuccess = async (nextAuth: AuthSession) => {
     setPending("Registrando login Google...");
@@ -130,8 +143,9 @@ export default function App() {
           savedSession={savedSession}
           busy={Boolean(pending)}
           connectionLabel="Portal disponível"
-          onOpenChess={openChessFrontend}
-          onResumeSavedChess={openChessFrontend}
+          onOpenChess={() => openGameFrontend("chess")}
+          onOpenTicTacToe={() => openGameFrontend("tictactoe")}
+          onResumeSavedGame={() => handleResumeSavedGame(savedSession)}
           onLogout={handleLogout}
         />
       )}

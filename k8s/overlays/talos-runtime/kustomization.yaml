@@ -35,6 +35,12 @@ configMapGenerator:
       - service.go=source/match-core/internal/games/chess/service.go
       - store.go=source/match-core/internal/games/chess/store.go
       - types.go=source/match-core/internal/games/chess/types.go
+      - tictactoe_bot_client.go=source/match-core/internal/games/tictactoe/bot_client.go
+      - tictactoe_config.go=source/match-core/internal/games/tictactoe/config.go
+      - tictactoe_metrics.go=source/match-core/internal/games/tictactoe/metrics.go
+      - tictactoe_service.go=source/match-core/internal/games/tictactoe/service.go
+      - tictactoe_store.go=source/match-core/internal/games/tictactoe/store.go
+      - tictactoe_types.go=source/match-core/internal/games/tictactoe/types.go
       - runtime.go=source/match-core/internal/platform/runtime.go
       - telemetry.go=source/match-core/internal/observability/telemetry.go
       - match_core.pb.go=source/match-core/proto/matchcore/match_core.pb.go
@@ -58,6 +64,7 @@ configMapGenerator:
       - go.mod=source/bot-engine/go.mod
       - main.go=source/bot-engine/cmd/bot-engine/main.go
       - easy.go=source/bot-engine/internal/games/chess/easy.go
+      - tictactoe_easy.go=source/bot-engine/internal/games/tictactoe/easy.go
       - telemetry.go=source/bot-engine/internal/observability/telemetry.go
       - strategy_engine.pb.go=source/bot-engine/proto/strategyv1/strategy_engine.pb.go
       - strategy_engine_grpc.pb.go=source/bot-engine/proto/strategyv1/strategy_engine_grpc.pb.go
@@ -91,6 +98,8 @@ configMapGenerator:
       - App.tsx=source/games-web/src/App.tsx
       - ChessGame.tsx=source/games-web/src/games/chess/ChessGame.tsx
       - GameView.tsx=source/games-web/src/components/GameView.tsx
+      - TicTacToeGame.tsx=source/games-web/src/games/tictactoe/TicTacToeGame.tsx
+      - TicTacToeView.tsx=source/games-web/src/components/TicTacToeView.tsx
       - Lobby.tsx=source/games-web/src/components/Lobby.tsx
       - config.ts=source/games-web/src/lib/config.ts
       - client-context.ts=source/games-web/src/lib/client-context.ts

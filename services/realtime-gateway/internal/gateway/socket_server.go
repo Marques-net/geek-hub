@@ -653,7 +653,7 @@ func (s *Server) clearSession(socket *socketio.Socket) {
 func (s *Server) startEventSpan(ctx context.Context, eventName string, roomCode string) (context.Context, oteltrace.Span) {
 	ctx, span := s.tracer.Start(ctx, "socket."+eventName)
 	if roomCode != "" {
-		span.SetAttributes(attribute.String("chess.room_code", roomCode))
+		span.SetAttributes(attribute.String("room.code", roomCode))
 	}
 	return ctx, span
 }
@@ -758,7 +758,7 @@ func (s *Server) seedChatHistory(roomCode string, snapshot *RoomSnapshot) []Chat
 				RoomCode:   roomCode,
 				SenderName: "Maquina easy",
 				SenderType: ChatSenderBot,
-				Text:       "Posso comentar seus lances e explicar regras basicas. Pergunte sobre aberturas, xeque, roque, empate ou sobre a ultima jogada.",
+				Text:       buildBotWelcomeMessage(snapshot),
 				Transport:  ChatTransportServer,
 				CreatedAt:  now + 1,
 			})
@@ -912,6 +912,14 @@ func senderTypeForRole(role ViewerRole) ChatSenderType {
 }
 
 func buildBotReply(snapshot *RoomSnapshot, text string) string {
+	if snapshot != nil && snapshot.GameType == "tictactoe" {
+		return buildTicTacToeBotReply(snapshot, text)
+	}
+
+	return buildChessBotReply(snapshot, text)
+}
+
+func buildChessBotReply(snapshot *RoomSnapshot, text string) string {
 	lower := strings.ToLower(text)
 
 	switch {
@@ -943,6 +951,14 @@ func buildBotReply(snapshot *RoomSnapshot, text string) string {
 }
 
 func buildBotMoveComment(snapshot *RoomSnapshot) string {
+	if snapshot != nil && snapshot.GameType == "tictactoe" {
+		return buildTicTacToeBotMoveComment(snapshot)
+	}
+
+	return buildChessBotMoveComment(snapshot)
+}
+
+func buildChessBotMoveComment(snapshot *RoomSnapshot) string {
 	if snapshot == nil || snapshot.LastMove == nil {
 		return "Siga desenvolvendo suas pecas e cuide do centro."
 	}
@@ -953,4 +969,46 @@ func buildBotMoveComment(snapshot *RoomSnapshot) string {
 	}
 
 	return fmt.Sprintf("Respondi com %s. Repare como um unico lance pode ganhar espaco, defender uma peca ou preparar o desenvolvimento.", move.SAN)
+}
+
+func buildBotWelcomeMessage(snapshot *RoomSnapshot) string {
+	if snapshot != nil && snapshot.GameType == "tictactoe" {
+		return "Posso comentar suas jogadas no jogo da velha, lembrar as regras e sugerir bloqueios, linhas de vitoria e disputas pelo centro."
+	}
+
+	return "Posso comentar seus lances e explicar regras basicas. Pergunte sobre aberturas, xeque, roque, empate ou sobre a ultima jogada."
+}
+
+func buildTicTacToeBotReply(snapshot *RoomSnapshot, text string) string {
+	lower := strings.ToLower(text)
+
+	switch {
+	case strings.Contains(lower, "regra"), strings.Contains(lower, "como joga"):
+		return "No jogo da velha, vence quem completar tres marcas em linha, coluna ou diagonal. Se o tabuleiro encher sem linha completa, termina empatado."
+	case strings.Contains(lower, "centro"):
+		return "O centro costuma ser a melhor casa inicial porque participa de quatro linhas vencedoras. Se ele estiver livre, quase sempre vale disputa-lo."
+	case strings.Contains(lower, "bloque"), strings.Contains(lower, "defes"):
+		return "Defender no jogo da velha costuma significar bloquear uma linha com duas marcas do adversario antes do terceiro lance."
+	case strings.Contains(lower, "fork"), strings.Contains(lower, "dupla"):
+		return "Uma bifurcacao acontece quando um lance cria duas ameacas ao mesmo tempo. Se voce puder criar duas linhas abertas, o rival nao consegue bloquear ambas."
+	case snapshot != nil && snapshot.LastMove != nil && snapshot.LastMove.Color == "w":
+		return fmt.Sprintf("Seu ultimo lance foi %s. Veja se ele abriu duas linhas ao mesmo tempo ou se deixou uma resposta obrigatoria para o rival.", snapshot.LastMove.SAN)
+	case snapshot != nil && snapshot.LastMove != nil:
+		return fmt.Sprintf("A ultima jogada da sala foi %s. Confira se ela bloqueou uma linha sua ou se criou uma ameaca imediata.", snapshot.LastMove.SAN)
+	default:
+		return "Posso comentar a ultima jogada, lembrar as regras e sugerir bloqueios. Pergunte, por exemplo: 'devo disputar o centro?' ou 'como evitar uma bifurcacao?'."
+	}
+}
+
+func buildTicTacToeBotMoveComment(snapshot *RoomSnapshot) string {
+	if snapshot == nil || snapshot.LastMove == nil {
+		return "No jogo da velha, disputar centro e cantos cedo costuma simplificar as linhas de vitoria."
+	}
+
+	move := snapshot.LastMove
+	if move.Color == "w" {
+		return fmt.Sprintf("Seu lance %s foi registrado. Agora confira se ele criou uma segunda ameaca ou se ainda precisa bloquear alguma linha aberta.", move.SAN)
+	}
+
+	return fmt.Sprintf("Respondi com %s. No jogo da velha, cada casa muda varias linhas ao mesmo tempo, entao vale revisar o tabuleiro inteiro a cada jogada.", move.SAN)
 }

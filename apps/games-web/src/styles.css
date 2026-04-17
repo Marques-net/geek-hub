@@ -461,6 +461,71 @@ input:not([type="checkbox"])::placeholder {
   max-width: 100%;
 }
 
+.ttt-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(10px, 1.4vw, 16px);
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.ttt-cell {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 235, 220, 0.14);
+  border-radius: 24px;
+  background: linear-gradient(155deg, rgba(255, 248, 239, 0.08), rgba(255, 248, 239, 0.03));
+  color: #fff4ea;
+  box-shadow: inset 0 0 0 1px rgba(255, 248, 239, 0.04);
+}
+
+.ttt-cell span {
+  font-size: clamp(2.4rem, 6vw, 4.8rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ttt-cell small {
+  color: #d5aea0;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ttt-cell:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.ttt-cell:not(:disabled) {
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.ttt-cell:not(:disabled):hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 176, 30, 0.38);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 176, 30, 0.2),
+    0 18px 34px rgba(18, 9, 3, 0.18);
+}
+
+.ttt-cell-x {
+  color: #ffd26d;
+}
+
+.ttt-cell-o {
+  color: #9fd4ff;
+}
+
+.ttt-cell-winning {
+  border-color: rgba(111, 240, 135, 0.46);
+  box-shadow:
+    inset 0 0 0 1px rgba(111, 240, 135, 0.28),
+    0 0 24px rgba(111, 240, 135, 0.18);
+}
+
 .side-column {
   grid-auto-rows: max-content;
 }

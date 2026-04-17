@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
-import { GameView } from "../../components/GameView";
+import { TicTacToeView } from "../../components/TicTacToeView";
 import { Lobby } from "../../components/Lobby";
 import { getBackendUrl } from "../../lib/config";
 import { getClientTelemetry } from "../../lib/client-context";
@@ -18,7 +18,7 @@ import {
 } from "../../types";
 
 const PORTAL_PATH = "/";
-const GAME_TYPE = "chess" as const;
+const GAME_TYPE = "tictactoe" as const;
 const socketUrl = getBackendUrl();
 const clientTelemetry = getClientTelemetry();
 const rtcConfiguration: RTCConfiguration = {
@@ -89,14 +89,10 @@ const readCurrentGameSession = (): ClientSession | null => {
     return null;
   }
 
-  if (!saved.gameType || saved.gameType === GAME_TYPE) {
-    return saved;
-  }
-
-  return null;
+  return saved.gameType === GAME_TYPE ? saved : null;
 };
 
-export function ChessGame() {
+export function TicTacToeGame() {
   const [authSession] = useState<AuthSession | null>(() => readAuthSession());
   const [nickname, setNickname] = useState(() => {
     const savedSession = readCurrentGameSession();
@@ -689,15 +685,14 @@ export function ChessGame() {
       return;
     }
 
-    await runAction("Enviando lance...", () =>
+    await runAction("Enviando jogada...", () =>
       emitWithAck("submit_action", {
         gameType: GAME_TYPE,
         roomCode: session.roomCode,
         playerToken: session.playerToken,
         actionType: "move",
         actionPayloadJson: JSON.stringify({
-          from,
-          to
+          cell: to || from
         })
       })
     );
@@ -872,7 +867,7 @@ export function ChessGame() {
   const canSendChat = Boolean(session && snapshot && !chatBusy);
   const chatPlaceholder =
     snapshot?.snapshot.mode === "bot_easy"
-      ? "Pergunte sobre o ultimo lance, regras ou ideia da jogada..."
+      ? "Pergunte sobre bloqueios, centro ou a ultima jogada..."
       : "Escreva uma mensagem para a sala...";
 
   return (
@@ -884,7 +879,7 @@ export function ChessGame() {
       {pending ? <div className="toast toast-info">{pending}</div> : null}
 
       {session && snapshot ? (
-        <GameView
+        <TicTacToeView
           session={session}
           state={snapshot}
           busy={Boolean(pending)}
@@ -905,11 +900,11 @@ export function ChessGame() {
         />
       ) : showSessionSync ? (
         <section className="panel lobby-panel status-panel">
-          <div className="eyebrow">Xadrez</div>
+          <div className="eyebrow">Jogo da Velha</div>
           <h1>Retomando a sua sala</h1>
           <p className="lead">
-            Estamos sincronizando a partida {session?.roomCode}. Se a reconexao falhar, voce
-            pode limpar a sessao salva e voltar ao portal.
+            Estamos sincronizando a partida {session?.roomCode}. Se a reconexao falhar, voce pode
+            limpar a sessao salva e voltar ao portal.
           </p>
           <div className="connection-badge">{connectionLabel}</div>
           <div className="form-actions">
@@ -929,13 +924,13 @@ export function ChessGame() {
         </section>
       ) : (
         <Lobby
-          gameLabel="Xadrez Online"
+          gameLabel="Jogo da Velha"
           gameTitle="Sala, treino ou reconexão"
-          gameDescription="Escolha como entrar no xadrez. O frontend só renderiza; a regra continua autoritativa no backend."
-          nicknamePlaceholder="Ex.: torre42"
+          gameDescription="Entre em uma sala online, treine contra a máquina easy ou retome uma partida salva. O estado continua autoritativo no backend."
+          nicknamePlaceholder="Ex.: hash42"
           trainingButtonLabel="Treinar vs máquina"
-          whiteSeatLabel="brancas"
-          blackSeatLabel="pretas"
+          whiteSeatLabel="X"
+          blackSeatLabel="O"
           authSession={authSession}
           nickname={nickname}
           roomCode={roomCode}

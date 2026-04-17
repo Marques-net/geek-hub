@@ -1,4 +1,5 @@
 export type Color = "w" | "b";
+export type GameType = "chess" | "tictactoe";
 export type ViewerRole = "player" | "spectator";
 export type GameMode = "pvp" | "bot_easy";
 export type BotLevel = "easy";
@@ -6,6 +7,7 @@ export type AuthProvider = "google" | "guest";
 export type GameStatus =
   | "waiting"
   | "active"
+  | "won"
   | "checkmate"
   | "stalemate"
   | "draw"
@@ -54,6 +56,7 @@ export interface DrawOffer {
 
 export interface RoomSnapshot {
   gameId: string;
+  gameType: GameType;
   roomCode: string;
   mode: GameMode;
   clockEnabled: boolean;
@@ -75,6 +78,7 @@ export interface RoomSnapshot {
 
 export interface ClientSession {
   roomCode: string;
+  gameType: GameType;
   role: ViewerRole;
   color: Color | null;
   nickname: string;

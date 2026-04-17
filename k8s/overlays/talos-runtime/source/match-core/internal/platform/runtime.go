@@ -44,3 +44,14 @@ func (r *Registry) Resolve(gameType string) Runtime {
 	return r.runtimes[gameType]
 }
 
+func (r *Registry) Values() []Runtime {
+	if r == nil {
+		return nil
+	}
+
+	values := make([]Runtime, 0, len(r.runtimes))
+	for _, runtime := range r.runtimes {
+		values = append(values, runtime)
+	}
+	return values
+}
