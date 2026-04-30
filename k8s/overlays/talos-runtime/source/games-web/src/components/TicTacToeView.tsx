@@ -13,6 +13,7 @@ interface TicTacToeViewProps {
   canSendChat: boolean;
   chatPlaceholder: string;
   onMove: (from: string, to: string) => Promise<void>;
+  onRestartGame: () => Promise<void>;
   onResign: () => Promise<void>;
   onOfferDraw: () => Promise<void>;
   onAcceptDraw: () => Promise<void>;
@@ -170,6 +171,7 @@ export const TicTacToeView = ({
   canSendChat,
   chatPlaceholder,
   onMove,
+  onRestartGame,
   onResign,
   onOfferDraw,
   onAcceptDraw,
@@ -253,6 +255,8 @@ export const TicTacToeView = ({
   const blackClockLabel = snapshot.clockEnabled ? blackClock : "Sem tempo";
   const isPlayer = session.role === "player";
   const isTurn = isPlayer && !busy && session.color === snapshot.turn && snapshot.status === "active";
+  const canRestartGame =
+    isPlayer && ["won", "draw", "resigned", "timeout"].includes(snapshot.status);
   const drawOfferedByOpponent =
     snapshot.drawOffer &&
     session.color &&
@@ -361,6 +365,9 @@ export const TicTacToeView = ({
         <div className="panel actions-panel">
           <div className="eyebrow">Ações</div>
           <div className="action-grid">
+            <button className="button" disabled={!canRestartGame || busy} onClick={() => void onRestartGame()}>
+              Nova partida
+            </button>
             <button
               className="button button-danger"
               disabled={!isPlayer || (snapshot.status !== "active" && snapshot.status !== "waiting") || busy}

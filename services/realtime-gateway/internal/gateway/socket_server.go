@@ -22,6 +22,7 @@ type roomChatState struct {
 	mu               sync.Mutex
 	history          []ChatMessage
 	seeded           bool
+	gameID           string
 	lastBotCommentAt int64
 }
 
@@ -47,12 +48,12 @@ type operationResult struct {
 
 func NewServer(config Config, logger *slog.Logger, tracer oteltrace.Tracer, matchCore *MatchCoreClient, metrics *Metrics) *Server {
 	server := &Server{
-		config:   config,
-		logger:   logger,
-		tracer:   tracer,
+		config:    config,
+		logger:    logger,
+		tracer:    tracer,
 		matchCore: matchCore,
-		metrics:  metrics,
-		io:       socketio.New(),
+		metrics:   metrics,
+		io:        socketio.New(),
 	}
 	server.emitToRoom = func(roomCode string, eventName string, args ...any) {
 		server.io.To(roomCode).Emit(eventName, args...)
@@ -244,6 +245,27 @@ func (s *Server) registerHandlers() {
 			})
 		})
 
+		socket.On("restart_game", func(event *socketio.EventPayload) {
+			payload, err := decodePayload[SessionPayload](event)
+			if err != nil {
+				s.sendError("restart_game", socket, event, err)
+				return
+			}
+
+			s.withAck("restart_game", socket, event, func(ctx context.Context) (*operationResult, error) {
+				snapshot, session, err := s.matchCore.RestartGame(ctx, payload)
+				if err != nil {
+					return nil, err
+				}
+
+				return &operationResult{
+					snapshot: snapshot,
+					roomCode: normalizeRoomCode(payload.RoomCode),
+					session:  session,
+				}, nil
+			})
+		})
+
 		socket.On("resign", func(event *socketio.EventPayload) {
 			payload, err := decodePayload[SessionPayload](event)
 			if err != nil {
@@ -397,7 +419,7 @@ func (s *Server) registerHandlers() {
 					text = text[:500]
 				}
 
-				s.seedChatHistory(roomCode, snapshot)
+				_, _ = s.seedChatHistory(roomCode, snapshot)
 
 				message := ChatMessage{
 					ID:          firstNonEmpty(payload.MessageID, newChatMessageID()),
@@ -536,12 +558,15 @@ func (s *Server) withAck(
 		socket.Join(result.roomCode)
 	}
 
+	var chatHistory []ChatMessage
+	var chatReset bool
 	if result != nil && result.roomCode != "" {
-		s.emitChatHistory(socket, result.roomCode, result.snapshot)
+		chatHistory, chatReset = s.seedChatHistory(result.roomCode, result.snapshot)
+		socket.Emit("chat_history", chatHistory)
 	}
 
 	if result != nil && result.snapshot != nil && result.roomCode != "" {
-		s.broadcastSnapshot(result.roomCode, result.snapshot)
+		s.broadcastPreparedSnapshot(result.roomCode, result.snapshot, chatHistory, chatReset)
 	}
 
 	if event.Ack != nil {
@@ -600,7 +625,18 @@ func (s *Server) broadcastSnapshot(roomCode string, snapshot *RoomSnapshot) {
 		return
 	}
 
-	s.seedChatHistory(roomCode, snapshot)
+	history, chatReset := s.seedChatHistory(roomCode, snapshot)
+	s.broadcastPreparedSnapshot(roomCode, snapshot, history, chatReset)
+}
+
+func (s *Server) broadcastPreparedSnapshot(roomCode string, snapshot *RoomSnapshot, chatHistory []ChatMessage, chatReset bool) {
+	if roomCode == "" || snapshot == nil {
+		return
+	}
+
+	if chatReset {
+		s.emitToRoom(roomCode, "chat_history", chatHistory)
+	}
 	if botMessage, ok := s.maybeCreateBotMoveComment(roomCode, snapshot); ok {
 		s.emitToRoom(roomCode, "chat_server_message", botMessage)
 	}
@@ -732,14 +768,25 @@ func (s *Server) emitChatHistory(socket *socketio.Socket, roomCode string, snaps
 		return
 	}
 
-	history := s.seedChatHistory(roomCode, snapshot)
+	history, _ := s.seedChatHistory(roomCode, snapshot)
 	socket.Emit("chat_history", history)
 }
 
-func (s *Server) seedChatHistory(roomCode string, snapshot *RoomSnapshot) []ChatMessage {
+func (s *Server) seedChatHistory(roomCode string, snapshot *RoomSnapshot) ([]ChatMessage, bool) {
 	state := s.roomChat(roomCode)
 	state.mu.Lock()
 	defer state.mu.Unlock()
+
+	chatReset := false
+	if snapshot != nil && snapshot.GameID != "" && state.gameID != "" && state.gameID != snapshot.GameID {
+		state.history = nil
+		state.seeded = false
+		state.lastBotCommentAt = 0
+		chatReset = true
+	}
+	if snapshot != nil && snapshot.GameID != "" {
+		state.gameID = snapshot.GameID
+	}
 
 	if !state.seeded {
 		now := time.Now().UnixMilli()
@@ -766,7 +813,7 @@ func (s *Server) seedChatHistory(roomCode string, snapshot *RoomSnapshot) []Chat
 		state.seeded = true
 	}
 
-	return cloneChatMessages(state.history)
+	return cloneChatMessages(state.history), chatReset
 }
 
 func (s *Server) appendChatMessage(roomCode string, message ChatMessage) ChatMessage {

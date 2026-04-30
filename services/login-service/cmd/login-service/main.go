@@ -142,7 +142,6 @@ func main() {
 			"loggedAt": loggedAt.Format(time.RFC3339),
 		})
 	})
-
 	httpServer := &http.Server{
 		Addr:              ":" + cfg.Port,
 		Handler:           withHTTPObservability(logger, observability.Tracer("login-service.http"), metrics, mux),

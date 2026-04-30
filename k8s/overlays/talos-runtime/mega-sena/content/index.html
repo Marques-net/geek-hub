@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mega-Sena | Eixos Paralelos</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Space Grotesk", "Segoe UI", sans-serif;
+        --bg: #0f1724;
+        --panel: rgba(13, 23, 38, 0.88);
+        --panel-border: rgba(159, 197, 255, 0.14);
+        --text: #e7eef8;
+        --muted: #8ca0b8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at top left, rgba(79, 179, 255, 0.12), transparent 26%),
+          radial-gradient(circle at bottom right, rgba(255, 148, 77, 0.12), transparent 22%),
+          linear-gradient(180deg, #0b1320 0%, var(--bg) 100%);
+        color: var(--text);
+      }
+
+      .page {
+        width: min(1480px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 24px 0 36px;
+        display: grid;
+        gap: 18px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 24px;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+        backdrop-filter: blur(14px);
+      }
+
+      .hero,
+      .controls,
+      .details {
+        padding: 22px 24px;
+      }
+
+      .hero,
+      .controls,
+      .details,
+      .chart-card {
+        display: grid;
+        gap: 14px;
+      }
+
+      .eyebrow {
+        font-size: 0.72rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #92cfff;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 4vw, 3.5rem);
+        line-height: 0.95;
+      }
+
+      h2 {
+        font-size: 1.35rem;
+      }
+
+      h3 {
+        font-size: 1rem;
+      }
+
+      .lead,
+      .subtle,
+      .stat-card small,
+      .detail-line span,
+      .chart-note,
+      .range-caption,
+      .range-header small {
+        color: var(--muted);
+      }
+
+      .stats,
+      .control-grid,
+      .date-grid,
+      .range-readout,
+      .detail-columns,
+      .detail-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .stats {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
+
+      .stat-card,
+      .range-chip,
+      .detail-line,
+      .detail-column {
+        padding: 16px 18px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        display: grid;
+        gap: 6px;
+      }
+
+      .stat-card strong {
+        font-size: 1.25rem;
+      }
+
+      .control-grid,
+      .date-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        align-items: end;
+      }
+
+      label {
+        display: grid;
+        gap: 8px;
+      }
+
+      input[type="number"],
+      input[type="date"],
+      input[type="month"],
+      input[type="range"],
+      input[type="color"],
+      button {
+        font: inherit;
+      }
+
+      input[type="number"],
+      input[type="date"],
+      input[type="month"] {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+      }
+
+      select {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+      }
+
+      select option {
+        background: #ffffff;
+        color: #000000;
+      }
+
+      input:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .button-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      button {
+        border: 0;
+        cursor: pointer;
+        padding: 12px 18px;
+        border-radius: 999px;
+        background: linear-gradient(120deg, #4fb3ff, #90ddff);
+        color: #072238;
+        font-weight: 700;
+      }
+
+      a.secondary-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 18px;
+        border-radius: 999px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .secondary-button {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+      }
+
+      .secondary-button[aria-pressed="true"] {
+        border-color: transparent;
+        background: linear-gradient(120deg, #ff944d, #ffd166);
+        color: #241000;
+      }
+
+      .range-panel {
+        display: grid;
+        gap: 14px;
+        padding: 16px 18px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .range-panel[hidden] {
+        display: none;
+      }
+
+      .range-header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 10px 16px;
+        align-items: baseline;
+      }
+
+      .range-readout,
+      .detail-columns {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+
+      .background-control {
+        display: grid;
+        gap: 10px;
+      }
+
+      .group-filter-panel,
+      .recent-filter-panel,
+      .simulation-panel {
+        display: grid;
+        gap: 12px;
+        padding: 16px 18px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .group-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+      }
+
+      .group-toggle input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        accent-color: #4fb3ff;
+      }
+
+      .group-meta {
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .month-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+      }
+
+      .simulation-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 12px;
+      }
+
+      .simulation-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .simulation-item {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px 12px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 209, 102, 0.32);
+        background: rgba(255, 209, 102, 0.08);
+      }
+
+      .simulation-item strong {
+        color: #ffe08a;
+      }
+
+      .simulation-item.is-auto {
+        border-color: rgba(255, 77, 77, 0.42);
+        background: rgba(255, 77, 77, 0.1);
+      }
+
+      .simulation-item.is-auto strong {
+        color: #ffb3b3;
+      }
+
+      .simulation-meta {
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .update-result-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 14px;
+        align-items: center;
+      }
+
+      .update-result-status {
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .sorte-board {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+      }
+
+      .sorte-slot {
+        display: grid;
+        gap: 10px;
+        justify-items: center;
+        padding: 14px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .sorte-ball {
+        width: 76px;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(circle at 35% 28%, #fff7d1, #ffd166 48%, #b7791f);
+        color: #241000;
+        font-size: 1.35rem;
+        font-weight: 800;
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
+      }
+
+      .sorte-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .background-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 52px;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .background-swatch {
+        width: 52px;
+        height: 28px;
+        padding: 0;
+        border-radius: 999px;
+        border: 1px solid rgba(15, 23, 36, 0.16);
+        background: #ffffff;
+        cursor: pointer;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      .background-swatch::-webkit-color-swatch-wrapper {
+        padding: 2px;
+        border-radius: 999px;
+      }
+
+      .background-swatch::-webkit-color-swatch,
+      .background-swatch::-moz-color-swatch {
+        border: 0;
+        border-radius: 999px;
+      }
+
+      #background-tone-range::-webkit-slider-runnable-track,
+      #background-tone-range::-moz-range-track {
+        height: 8px;
+        border-radius: 999px;
+        background: linear-gradient(
+          90deg,
+          hsl(0 70% 72%),
+          hsl(60 78% 76%),
+          hsl(120 55% 76%),
+          hsl(180 55% 74%),
+          hsl(240 62% 78%),
+          hsl(300 58% 78%),
+          hsl(360 70% 72%)
+        );
+      }
+
+      .dual-range {
+        position: relative;
+        height: 34px;
+      }
+
+      .dual-range-track,
+      .dual-range-fill {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 8px;
+        border-radius: 999px;
+        transform: translateY(-50%);
+      }
+
+      .dual-range-track {
+        background: rgba(255, 255, 255, 0.14);
+      }
+
+      .dual-range-fill {
+        right: auto;
+        background: linear-gradient(120deg, #4fb3ff, #ffd166);
+      }
+
+      .dual-range input[type="range"] {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        width: 100%;
+        background: none;
+        pointer-events: none;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      #range-start {
+        z-index: 2;
+      }
+
+      #range-end {
+        z-index: 3;
+      }
+
+      #range-highlight {
+        z-index: 4;
+      }
+
+      .dual-range input[type="range"].is-active {
+        z-index: 6;
+      }
+
+      .dual-range input[type="range"]::-webkit-slider-runnable-track,
+      .dual-range input[type="range"]::-moz-range-track {
+        height: 34px;
+        background: transparent;
+      }
+
+      .dual-range input[type="range"]::-webkit-slider-thumb,
+      .dual-range input[type="range"]::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid #ffffff;
+        background: #4fb3ff;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+        pointer-events: auto;
+        cursor: pointer;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      #range-start::-webkit-slider-thumb,
+      #range-start::-moz-range-thumb {
+        background: #1f2937;
+      }
+
+      #range-end::-webkit-slider-thumb,
+      #range-end::-moz-range-thumb {
+        background: #111827;
+      }
+
+      #range-highlight::-webkit-slider-thumb,
+      #range-highlight::-moz-range-thumb {
+        width: 22px;
+        height: 22px;
+        border: 3px solid #ffffff;
+        background: #0d6efd;
+        box-shadow: 0 2px 14px rgba(13, 110, 253, 0.38);
+      }
+
+      .chart-card {
+        padding: 12px;
+      }
+
+      .chart-header {
+        padding: 12px 12px 0;
+        display: grid;
+        gap: 4px;
+      }
+
+      .chart-shell {
+        position: relative;
+        width: 100%;
+        min-height: 720px;
+        height: min(78vh, 920px);
+        border-radius: 18px;
+        overflow: hidden;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01)),
+          #0b1220;
+      }
+
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .detail-grid {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      }
+
+      .detail-line strong {
+        font-size: 1.12rem;
+      }
+
+      @media (max-width: 900px) {
+        .page {
+          width: min(100vw - 20px, 1480px);
+          padding-top: 12px;
+        }
+
+        .hero,
+        .controls,
+        .details {
+          padding: 18px;
+        }
+
+        .chart-shell {
+          min-height: 560px;
+          height: 66vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page" id="topo">
+      <section class="panel hero">
+        <div class="eyebrow">Mega-Sena | Coleção geek_hub.mega_sena_resultados</div>
+        <h1>Resultados em 6 eixos paralelos</h1>
+        <p class="lead">
+          O primeiro gráfico mantém as dezenas em ordem crescente. O segundo usa a ordem em que as
+          dezenas saíram no sorteio, quando essa informação está disponível na base.
+        </p>
+        <div class="stats">
+          <article class="stat-card">
+            <small>Total de concursos</small>
+            <strong id="total-draws">-</strong>
+          </article>
+          <article class="stat-card">
+            <small>Primeiro concurso</small>
+            <strong id="first-draw">-</strong>
+          </article>
+          <article class="stat-card">
+            <small>Último concurso</small>
+            <strong id="last-draw">-</strong>
+          </article>
+          <article class="stat-card">
+            <small>Faixa de datas</small>
+            <strong id="date-range">-</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel controls">
+        <div class="control-grid">
+          <label>
+            Concurso em destaque
+            <input id="highlight-number" type="number" />
+          </label>
+          <label>
+            Navegar entre concursos
+            <input id="highlight-range" type="range" />
+          </label>
+          <label>
+            Opacidade das linhas
+            <input id="opacity-range" type="range" min="2" max="20" step="1" value="8" />
+          </label>
+        </div>
+        <div class="button-row">
+          <a class="secondary-button" href="#simulacao-jogo">Ir para simulação do jogo</a>
+          <button id="toggle-all-lines" class="secondary-button" type="button" aria-pressed="false">
+            Mostrar todas as linhas
+          </button>
+          <button id="export-png" type="button">Exportar PNG</button>
+        </div>
+        <div class="update-result-row">
+          <button id="update-mega-sena-result" class="secondary-button" type="button">
+            Atualizar último resultado oficial
+          </button>
+          <span id="update-mega-sena-status" class="update-result-status">-</span>
+        </div>
+
+        <section class="range-panel" id="range-panel" hidden>
+          <div class="range-header">
+            <strong>Amostragem exibida no gráfico</strong>
+            <small id="range-count">-</small>
+          </div>
+          <div class="date-grid">
+            <label>
+              Data inicial
+              <input id="date-start" type="date" />
+            </label>
+            <label>
+              Data final
+              <input id="date-end" type="date" />
+            </label>
+          </div>
+          <div class="range-readout">
+            <article class="range-chip" id="range-start-label"></article>
+            <article class="range-chip" id="range-end-label"></article>
+          </div>
+          <div class="dual-range">
+            <div class="dual-range-track"></div>
+            <div class="dual-range-fill" id="range-fill"></div>
+            <input id="range-start" type="range" />
+            <input id="range-highlight" type="range" />
+            <input id="range-end" type="range" />
+          </div>
+          <p class="range-caption">
+            A extremidade esquerda representa os concursos mais antigos e a direita os mais recentes.
+          </p>
+          <div class="background-control">
+            <div class="range-header">
+              <strong>Matiz base do fundo</strong>
+              <small id="background-tone-label">210°</small>
+            </div>
+            <div class="background-row">
+              <input id="background-tone-range" type="range" min="0" max="360" step="1" value="210" />
+              <input
+                id="background-tone-swatch"
+                class="background-swatch"
+                type="color"
+                value="#ffffff"
+                aria-label="Cor inicial do gradiente"
+                title="Cor inicial do gradiente"
+              />
+            </div>
+          </div>
+          <div class="group-filter-panel">
+            <label class="group-toggle">
+              <input id="group-filter-enabled" type="checkbox" />
+              <span>Filtrar linhas de fundo por grupo repetido</span>
+            </label>
+            <div class="control-grid">
+              <label>
+                Base do grupo
+                <select id="group-filter-source">
+                  <option value="ordered">Ordem do sorteio</option>
+                  <option value="sorted">Ordem crescente</option>
+                  <option value="descending">Ordem decrescente</option>
+                </select>
+              </label>
+              <label>
+                Tamanho do grupo
+                <select id="group-filter-size">
+                  <option value="2">2 dezenas</option>
+                  <option value="3">3 dezenas</option>
+                  <option value="4">4 dezenas</option>
+                  <option value="5">5 dezenas</option>
+                  <option value="6">6 dezenas</option>
+                </select>
+              </label>
+              <label>
+                Modo de comparacao
+                <select id="group-filter-mode">
+                  <option value="set">Conjunto</option>
+                  <option value="sequence">Sequencia exata</option>
+                </select>
+              </label>
+              <label>
+                Grupo repetido
+                <select id="group-filter-key"></select>
+              </label>
+            </div>
+            <p class="group-meta" id="group-filter-meta">
+              Selecione um grupo repetido para reduzir as linhas de fundo dos dois graficos.
+            </p>
+          </div>
+          <div class="recent-filter-panel">
+            <div class="range-header">
+              <strong>Recorte dos concursos mais recentes</strong>
+              <small id="recent-overlay-meta">
+                Selecione um grupo recente para colorir cada linha de fundo com uma cor exclusiva.
+              </small>
+            </div>
+            <label>
+              Últimos concursos coloridos
+              <select id="recent-overlay-limit">
+                <option value="0">Todos do intervalo atual</option>
+                <option value="10">10 mais recentes</option>
+                <option value="20">20 mais recentes</option>
+                <option value="30">30 mais recentes</option>
+                <option value="40">40 mais recentes</option>
+                <option value="50">50 mais recentes</option>
+              </select>
+            </label>
+            <div class="month-filter-grid">
+              <label>
+                Mês inicial
+                <input id="recent-month-start" type="month" />
+              </label>
+              <label>
+                Mês final
+                <input id="recent-month-end" type="month" />
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <p class="subtle">
+          Os filtros acima controlam os dois gráficos. A ordem de sorteio está disponível na base
+          do concurso 2196 em diante.
+        </p>
+      </section>
+
+      <section class="panel controls simulation-panel">
+        <div class="range-header">
+          <strong>Simulação jogo</strong>
+          <small id="simulation-meta">
+            Os campos usam os valores disponíveis em cada eixo do primeiro gráfico.
+          </small>
+        </div>
+        <div class="simulation-grid">
+          <label>
+            1ª dezena
+            <select id="simulation-number-1" class="simulation-input" data-axis-index="0"></select>
+          </label>
+          <label>
+            2ª dezena
+            <select id="simulation-number-2" class="simulation-input" data-axis-index="1"></select>
+          </label>
+          <label>
+            3ª dezena
+            <select id="simulation-number-3" class="simulation-input" data-axis-index="2"></select>
+          </label>
+          <label>
+            4ª dezena
+            <select id="simulation-number-4" class="simulation-input" data-axis-index="3"></select>
+          </label>
+          <label>
+            5ª dezena
+            <select id="simulation-number-5" class="simulation-input" data-axis-index="4"></select>
+          </label>
+          <label>
+            6ª dezena
+            <select id="simulation-number-6" class="simulation-input" data-axis-index="5"></select>
+          </label>
+        </div>
+        <div class="button-row">
+          <button id="add-simulation" type="button">Simular jogo</button>
+          <button id="auto-simulation" class="secondary-button" type="button">
+            Escolher automático
+          </button>
+          <button id="clear-simulations" class="secondary-button" type="button">
+            Limpar simulação
+          </button>
+        </div>
+        <strong>Jogos simulados</strong>
+        <div class="simulation-list" id="simulation-list"></div>
+      </section>
+
+      <section class="panel controls simulation-panel" id="simulacao-jogo">
+        <div class="range-header">
+          <strong>Simulação do jogo</strong>
+          <small id="sorte-game-status">Acione o primeiro botão para iniciar a sequência.</small>
+        </div>
+        <div class="sorte-board" id="sorte-game-board"></div>
+        <div class="sorte-actions">
+          <button id="sorte-game-register" type="button">Registrar simulação</button>
+          <button id="sorte-game-reset" class="secondary-button" type="button">Reiniciar simulação</button>
+          <a class="secondary-button" href="#topo">Voltar aos gráficos</a>
+        </div>
+        <p class="simulation-meta" id="sorte-game-register-status">-</p>
+      </section>
+
+      <section class="panel chart-card">
+        <div class="chart-header">
+          <h2>Gráfico 1 | Ordem crescente das dezenas</h2>
+          <p class="chart-note" id="sorted-chart-note">-</p>
+        </div>
+        <div class="chart-shell" id="sorted-chart-shell">
+          <canvas id="sorted-chart"></canvas>
+        </div>
+      </section>
+
+      <section class="panel chart-card">
+        <div class="chart-header">
+          <h2>Gráfico 2 | Ordem do sorteio</h2>
+          <p class="chart-note" id="ordered-chart-note">-</p>
+        </div>
+        <div class="chart-shell" id="ordered-chart-shell">
+          <canvas id="ordered-chart"></canvas>
+        </div>
+      </section>
+
+      <section class="panel details">
+        <h2 id="detail-title">Concurso em destaque</h2>
+        <p class="subtle" id="detail-meta">-</p>
+        <div class="detail-columns">
+          <section class="detail-column">
+            <h3>Ordem crescente</h3>
+            <div class="detail-grid" id="detail-grid-sorted"></div>
+          </section>
+          <section class="detail-column">
+            <h3>Ordem do sorteio</h3>
+            <p class="subtle" id="detail-order-meta">-</p>
+            <div class="detail-grid" id="detail-grid-ordered"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script src="./mega-sena-draws.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

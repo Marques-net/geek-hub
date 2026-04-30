@@ -33,7 +33,6 @@ const resolveGameSlug = (): string => {
   if (first === "tictactoe" || first === "jogo-da-velha") {
     return "tictactoe";
   }
-
   return "chess";
 };
 

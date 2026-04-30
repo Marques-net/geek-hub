@@ -63,8 +63,8 @@ export const GameMenu = ({
             <div className="eyebrow">Menu de Jogos</div>
             <h1>Escolha o que jogar</h1>
             <p className="lead">
-              O hub prepara a aplicação para múltiplos jogos. Xadrez e jogo da velha já
-              compartilham a mesma malha de login, treino, chat e observabilidade.
+              O hub prepara a aplicação para múltiplos jogos. Xadrez e jogo da velha
+              dividem o mesmo portal sem quebrar a navegação principal.
             </p>
           </div>
         </div>

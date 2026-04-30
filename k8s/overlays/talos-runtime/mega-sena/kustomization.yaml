@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: chess-dev
+resources:
+  - frontend-deployment.yaml
+  - frontend-service.yaml
+  - backend-deployment.yaml
+  - backend-service.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+configMapGenerator:
+  - name: mega-sena-viewer-content
+    options:
+      disableNameSuffixHash: true
+    files:
+      - index.html=content/index.html
+      - app.js=content/app.js
+      - mega-sena-draws.js=content/mega-sena-draws.js
+  - name: mega-sena-service-source
+    files:
+      - go.mod=source/mega-sena-service/go.mod
+      - go.sum=source/mega-sena-service/go.sum
+      - main.go=source/mega-sena-service/cmd/mega-sena-service/main.go
+      - config.go=source/mega-sena-service/internal/mega/config.go
+      - repository.go=source/mega-sena-service/internal/mega/repository.go
+      - telemetry.go=source/mega-sena-service/internal/observability/telemetry.go

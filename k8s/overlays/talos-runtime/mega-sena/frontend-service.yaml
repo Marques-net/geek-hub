@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mega-sena-viewer
+  labels:
+    app.kubernetes.io/name: geek-hub
+    app.kubernetes.io/component: mega-sena-viewer
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: geek-hub
+    app.kubernetes.io/component: mega-sena-viewer
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

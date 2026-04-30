@@ -17,6 +17,7 @@ interface GameViewProps {
   canSendChat: boolean;
   chatPlaceholder: string;
   onMove: (from: string, to: string) => Promise<void>;
+  onRestartGame: () => Promise<void>;
   onResign: () => Promise<void>;
   onOfferDraw: () => Promise<void>;
   onAcceptDraw: () => Promise<void>;
@@ -194,6 +195,7 @@ export const GameView = ({
   canSendChat,
   chatPlaceholder,
   onMove,
+  onRestartGame,
   onResign,
   onOfferDraw,
   onAcceptDraw,
@@ -316,6 +318,9 @@ export const GameView = ({
     snapshot.drawOffer.offeredBy !== session.color &&
     snapshot.status === "active";
   const isBotGame = snapshot.mode === "bot_easy";
+  const canRestartGame =
+    isPlayer &&
+    ["checkmate", "stalemate", "draw", "resigned", "timeout"].includes(snapshot.status);
   const displayFen = previewFen ?? snapshot.fen;
   const validTargets = getValidTargets(snapshot.fen, dragSource);
   const validTargetSet = new Set(validTargets);
@@ -515,6 +520,9 @@ export const GameView = ({
         <div className="panel actions-panel">
           <div className="eyebrow">Acoes</div>
           <div className="action-grid">
+            <button className="button" disabled={!canRestartGame || busy} onClick={() => void onRestartGame()}>
+              Nova partida
+            </button>
             <button
               className="button button-danger"
               disabled={

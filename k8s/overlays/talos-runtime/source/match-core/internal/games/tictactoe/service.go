@@ -9,15 +9,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	matchcorev1 "github.com/Marques-net/geek-hub/services/match-core/proto/matchcore"
+	"github.com/google/uuid"
 )
 
 const (
-	roomCodeChars   = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	botMoveDelayMs  = int64(900)
-	easyBotNickname = "Maquina (easy)"
-	initialBoard    = "---------"
+	roomCodeChars         = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	botMoveDelayMs        = int64(900)
+	easyBotNickname       = "Maquina (easy)"
+	initialBoard          = "---------"
+	actionTypeMove        = "move"
+	actionTypeRestartGame = "restart_game"
 )
 
 var cellToIndex = map[string]int{
@@ -464,10 +466,17 @@ func (s *Service) SyncState(ctx context.Context, req *matchcorev1.RoomRequest) (
 }
 
 func (s *Service) SubmitAction(ctx context.Context, req *matchcorev1.RoomRequest) (*matchcorev1.RoomResponse, error) {
-	if req.GetActionType() != "move" {
+	switch req.GetActionType() {
+	case actionTypeMove:
+		return s.submitMove(ctx, req)
+	case actionTypeRestartGame:
+		return s.restartGame(ctx, req)
+	default:
 		return errorResponse(newAppError("Acao nao suportada para jogo da velha.", "UNSUPPORTED_ACTION", 400)), nil
 	}
+}
 
+func (s *Service) submitMove(ctx context.Context, req *matchcorev1.RoomRequest) (*matchcorev1.RoomResponse, error) {
 	var payload moveActionPayload
 	if err := json.Unmarshal([]byte(req.GetActionPayloadJson()), &payload); err != nil {
 		return errorResponse(newAppError("A carga da acao e invalida.", "INVALID_ACTION_PAYLOAD", 400)), nil
@@ -516,6 +525,47 @@ func (s *Service) SubmitAction(ctx context.Context, req *matchcorev1.RoomRequest
 		return nil, err
 	}
 	return successResponse(s.toSnapshot(state), nil, false)
+}
+
+func (s *Service) restartGame(ctx context.Context, req *matchcorev1.RoomRequest) (*matchcorev1.RoomResponse, error) {
+	state, appErr := s.requireRoom(ctx, req.GetRoomCode())
+	if appErr != nil {
+		return errorResponse(appErr), nil
+	}
+
+	color, seat := findSeatByToken(state, req.GetPlayerToken())
+	if seat == nil {
+		return errorResponse(newAppError("Jogador nao encontrado nesta sala.", "SESSION_NOT_FOUND", 404)), nil
+	}
+	if seat.IsBot {
+		return errorResponse(newAppError("A cadeira da maquina nao aceita comandos.", "BOT_CONTROL_FORBIDDEN", 403)), nil
+	}
+	if !isFinishedStatus(state.Status) {
+		return errorResponse(newAppError("A partida so pode ser reiniciada depois de encerrar.", "GAME_NOT_FINISHED", 400)), nil
+	}
+	if state.White == nil || state.Black == nil {
+		return errorResponse(newAppError("A sala precisa manter os dois jogadores para iniciar uma nova partida.", "RESTART_REQUIRES_PLAYERS", 400)), nil
+	}
+
+	timestamp := now()
+	seat.Connected = true
+	seat.LastSeenAt = timestamp
+	s.resetRoomForRestart(state, timestamp)
+
+	if err := s.saveRoom(ctx, state); err != nil {
+		return nil, err
+	}
+
+	return successResponse(s.toSnapshot(state), &SessionDescriptor{
+		RoomCode:    state.RoomCode,
+		GameType:    state.GameType,
+		Role:        ViewerRolePlayer,
+		Color:       colorPtr(color),
+		Nickname:    seat.Nickname,
+		GameID:      state.GameID,
+		Mode:        state.Mode,
+		PlayerToken: seat.PlayerToken,
+	}, false)
 }
 
 func (s *Service) Resign(ctx context.Context, req *matchcorev1.RoomRequest) (*matchcorev1.RoomResponse, error) {
@@ -858,6 +908,46 @@ func (s *Service) startGame(state *RoomState, timestamp int64) {
 	state.Clocks.ActiveColor = nil
 	state.Clocks.TurnStartedAt = nil
 	state.BotMoveDueAt = nil
+}
+
+func (s *Service) resetRoomForRestart(state *RoomState, timestamp int64) {
+	initialClockMs := int64(0)
+	if state.ClockEnabled {
+		initialClockMs = state.Clocks.InitialMs
+		if initialClockMs <= 0 {
+			initialClockMs = s.config.RoomClockMs()
+		}
+	}
+
+	if state.White != nil && state.White.IsBot {
+		state.White.Connected = true
+		state.White.LastSeenAt = timestamp
+	}
+	if state.Black != nil && state.Black.IsBot {
+		state.Black.Connected = true
+		state.Black.LastSeenAt = timestamp
+	}
+
+	state.GameID = uuid.NewString()
+	state.FEN = initialBoard
+	state.PGN = ""
+	state.Turn = ColorWhite
+	state.Status = GameStatusActive
+	state.Winner = nil
+	state.EndReason = nil
+	state.MoveHistory = []MoveRecord{}
+	state.LastMove = nil
+	state.DrawOffer = nil
+	state.BotMoveDueAt = nil
+	state.StartedAt = int64Ptr(timestamp)
+	state.FinishedAt = nil
+	state.Clocks = GameClockState{
+		InitialMs: initialClockMs,
+		WhiteMs:   initialClockMs,
+		BlackMs:   initialClockMs,
+	}
+	state.UpdatedAt = timestamp
+	state.ExpiresAt = timestamp + int64(s.config.GameTTLSeconds)*1000
 }
 
 func (s *Service) advanceClock(state *RoomState, timestamp int64) {

@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mega-sena-viewer
+  labels:
+    app.kubernetes.io/name: geek-hub
+    app.kubernetes.io/component: mega-sena-viewer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: geek-hub
+      app.kubernetes.io/component: mega-sena-viewer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: geek-hub
+        app.kubernetes.io/component: mega-sena-viewer
+        app.kubernetes.io/part-of: geek-hub
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mega-sena-viewer
+          image: nginxinc/nginx-unprivileged:1.27-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /mega-sena/
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /mega-sena/
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /mega-sena/
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 96Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: content
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /var/run
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: content
+          configMap:
+            name: mega-sena-viewer-content
+            items:
+              - key: index.html
+                path: mega-sena/index.html
+              - key: app.js
+                path: mega-sena/app.js
+              - key: mega-sena-draws.js
+                path: mega-sena/mega-sena-draws.js
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

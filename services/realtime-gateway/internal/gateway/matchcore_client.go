@@ -156,6 +156,22 @@ func (c *MatchCoreClient) SubmitAction(ctx context.Context, payload SubmitAction
 	return requireSnapshot(response)
 }
 
+func (c *MatchCoreClient) RestartGame(ctx context.Context, payload SessionPayload) (*RoomSnapshot, *SessionDescriptor, error) {
+	response, err := c.invokeCommand(ctx, func(callCtx context.Context) (*matchcorev1.RoomResponse, error) {
+		return c.client.SubmitAction(callCtx, &matchcorev1.RoomRequest{
+			GameType:    string(payload.GameType),
+			RoomCode:    strings.ToUpper(payload.RoomCode),
+			PlayerToken: payload.PlayerToken,
+			ActionType:  "restart_game",
+		})
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return parseSnapshotAndSession(response)
+}
+
 func (c *MatchCoreClient) Resign(ctx context.Context, payload SessionPayload) (*RoomSnapshot, error) {
 	response, err := c.invokeCommand(ctx, func(callCtx context.Context) (*matchcorev1.RoomResponse, error) {
 		return c.client.Resign(callCtx, &matchcorev1.RoomRequest{
