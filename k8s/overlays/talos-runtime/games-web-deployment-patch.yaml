@@ -50,6 +50,8 @@ spec:
           image: node:20-alpine
           imagePullPolicy: IfNotPresent
           env:
+            - name: VITE_PROXY_LOGIN_BACKEND_URL
+              value: "http://login-service:3000"
             - name: VITE_PROXY_BACKEND_URL
               value: "http://realtime-gateway:3000"
           command:

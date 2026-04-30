@@ -9,22 +9,24 @@ import (
 	"sync"
 	"time"
 
+	matchcorev1 "github.com/Marques-net/geek-hub/services/match-core/proto/matchcore"
 	"github.com/google/uuid"
 	"github.com/notnil/chess"
-	matchcorev1 "github.com/Marques-net/geek-hub/services/match-core/proto/matchcore"
 )
 
 const (
-	roomCodeChars   = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	botMoveDelayMs  = int64(1200)
-	easyBotNickname = "Máquina (easy)"
+	roomCodeChars         = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	botMoveDelayMs        = int64(1200)
+	easyBotNickname       = "Máquina (easy)"
+	actionTypeMove        = "move"
+	actionTypeRestartGame = "restart_game"
 )
 
 type Service struct {
-	config   Config
-	store    *Store
-	bot      *BotClient
-	metrics  *Metrics
+	config  Config
+	store   *Store
+	bot     *BotClient
+	metrics *Metrics
 
 	activeRoomsMu sync.Mutex
 	activeRooms   map[string]struct{}
@@ -430,10 +432,17 @@ func (s *Service) SyncState(ctx context.Context, req *matchcorev1.RoomRequest) (
 }
 
 func (s *Service) SubmitAction(ctx context.Context, req *matchcorev1.RoomRequest) (*matchcorev1.RoomResponse, error) {
-	if req.GetActionType() != "move" {
+	switch req.GetActionType() {
+	case actionTypeMove:
+		return s.submitMove(ctx, req)
+	case actionTypeRestartGame:
+		return s.restartGame(ctx, req)
+	default:
 		return errorResponse(newAppError("Ação não suportada para xadrez.", "UNSUPPORTED_ACTION", 400)), nil
 	}
+}
 
+func (s *Service) submitMove(ctx context.Context, req *matchcorev1.RoomRequest) (*matchcorev1.RoomResponse, error) {
 	var payload moveActionPayload
 	if err := json.Unmarshal([]byte(req.GetActionPayloadJson()), &payload); err != nil {
 		return errorResponse(newAppError("A carga da ação é inválida.", "INVALID_ACTION_PAYLOAD", 400)), nil
@@ -477,6 +486,47 @@ func (s *Service) SubmitAction(ctx context.Context, req *matchcorev1.RoomRequest
 		return nil, err
 	}
 	return successResponse(s.toSnapshot(state), nil, false)
+}
+
+func (s *Service) restartGame(ctx context.Context, req *matchcorev1.RoomRequest) (*matchcorev1.RoomResponse, error) {
+	state, appErr := s.requireRoom(ctx, req.GetRoomCode())
+	if appErr != nil {
+		return errorResponse(appErr), nil
+	}
+
+	color, seat := findSeatByToken(state, req.GetPlayerToken())
+	if seat == nil {
+		return errorResponse(newAppError("Jogador não encontrado nesta sala.", "SESSION_NOT_FOUND", 404)), nil
+	}
+	if seat.IsBot {
+		return errorResponse(newAppError("A cadeira da máquina não aceita comandos.", "BOT_CONTROL_FORBIDDEN", 403)), nil
+	}
+	if !isFinishedStatus(state.Status) {
+		return errorResponse(newAppError("A partida só pode ser reiniciada depois de encerrar.", "GAME_NOT_FINISHED", 400)), nil
+	}
+	if state.White == nil || state.Black == nil {
+		return errorResponse(newAppError("A sala precisa manter os dois jogadores para iniciar uma nova partida.", "RESTART_REQUIRES_PLAYERS", 400)), nil
+	}
+
+	timestamp := now()
+	seat.Connected = true
+	seat.LastSeenAt = timestamp
+	s.resetRoomForRestart(state, timestamp)
+
+	if err := s.saveRoom(ctx, state); err != nil {
+		return nil, err
+	}
+
+	return successResponse(s.toSnapshot(state), &SessionDescriptor{
+		RoomCode:    state.RoomCode,
+		GameType:    state.GameType,
+		Role:        ViewerRolePlayer,
+		Color:       colorPtr(color),
+		Nickname:    seat.Nickname,
+		GameID:      state.GameID,
+		Mode:        state.Mode,
+		PlayerToken: seat.PlayerToken,
+	}, false)
 }
 
 func (s *Service) Resign(ctx context.Context, req *matchcorev1.RoomRequest) (*matchcorev1.RoomResponse, error) {
@@ -846,6 +896,46 @@ func (s *Service) startGame(state *RoomState, timestamp int64) {
 	state.BotMoveDueAt = nil
 }
 
+func (s *Service) resetRoomForRestart(state *RoomState, timestamp int64) {
+	initialClockMs := int64(0)
+	if state.ClockEnabled {
+		initialClockMs = state.Clocks.InitialMs
+		if initialClockMs <= 0 {
+			initialClockMs = s.config.RoomClockMs()
+		}
+	}
+
+	if state.White != nil && state.White.IsBot {
+		state.White.Connected = true
+		state.White.LastSeenAt = timestamp
+	}
+	if state.Black != nil && state.Black.IsBot {
+		state.Black.Connected = true
+		state.Black.LastSeenAt = timestamp
+	}
+
+	state.GameID = uuid.NewString()
+	state.FEN = chess.NewGame().Position().String()
+	state.PGN = ""
+	state.Turn = ColorWhite
+	state.Status = GameStatusActive
+	state.Winner = nil
+	state.EndReason = nil
+	state.MoveHistory = []MoveRecord{}
+	state.LastMove = nil
+	state.DrawOffer = nil
+	state.BotMoveDueAt = nil
+	state.StartedAt = int64Ptr(timestamp)
+	state.FinishedAt = nil
+	state.Clocks = GameClockState{
+		InitialMs: initialClockMs,
+		WhiteMs:   initialClockMs,
+		BlackMs:   initialClockMs,
+	}
+	state.UpdatedAt = timestamp
+	state.ExpiresAt = timestamp + int64(s.config.GameTTLSeconds)*1000
+}
+
 func (s *Service) advanceClock(state *RoomState, timestamp int64) {
 	if !state.ClockEnabled {
 		return
@@ -919,25 +1009,25 @@ func (s *Service) toSnapshot(state *RoomState) *RoomSnapshot {
 	}
 
 	return &RoomSnapshot{
-		GameID:      state.GameID,
-		GameType:    state.GameType,
-		RoomCode:    state.RoomCode,
-		Mode:        state.Mode,
+		GameID:       state.GameID,
+		GameType:     state.GameType,
+		RoomCode:     state.RoomCode,
+		Mode:         state.Mode,
 		ClockEnabled: state.ClockEnabled,
-		FEN:         state.FEN,
-		PGN:         state.PGN,
-		Turn:        state.Turn,
-		Status:      state.Status,
-		Winner:      state.Winner,
-		EndReason:   state.EndReason,
-		White:       seatSnapshot(state.White),
-		Black:       seatSnapshot(state.Black),
-		ViewerCount: viewerCount,
-		Clocks:      state.Clocks,
-		MoveHistory: state.MoveHistory,
-		LastMove:    state.LastMove,
-		DrawOffer:   state.DrawOffer,
-		ServerNow:   now(),
+		FEN:          state.FEN,
+		PGN:          state.PGN,
+		Turn:         state.Turn,
+		Status:       state.Status,
+		Winner:       state.Winner,
+		EndReason:    state.EndReason,
+		White:        seatSnapshot(state.White),
+		Black:        seatSnapshot(state.Black),
+		ViewerCount:  viewerCount,
+		Clocks:       state.Clocks,
+		MoveHistory:  state.MoveHistory,
+		LastMove:     state.LastMove,
+		DrawOffer:    state.DrawOffer,
+		ServerNow:    now(),
 	}
 }
 
@@ -1155,7 +1245,7 @@ func botLevelPtr(value BotLevel) *BotLevel {
 	}
 	return &value
 }
-func int64Ptr(value int64) *int64 { return &value }
+func int64Ptr(value int64) *int64     { return &value }
 func emptyToOmit(value string) string { return strings.TrimSpace(value) }
 func maxInt64(a, b int64) int64 {
 	if a > b {

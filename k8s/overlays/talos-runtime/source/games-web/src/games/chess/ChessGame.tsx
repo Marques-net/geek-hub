@@ -137,6 +137,12 @@ export function ChessGame() {
     });
   };
 
+  const replaceChatMessages = (incoming: ChatMessage[]) => {
+    const next = mergeMessages([], incoming);
+    chatIdsRef.current = new Set(next.map((message) => message.id));
+    setChatMessages(next);
+  };
+
   const resetPeerConnection = (nextStatus: string) => {
     offerRoomCodeRef.current = null;
 
@@ -382,6 +388,26 @@ export function ChessGame() {
   }, [snapshot]);
 
   useEffect(() => {
+    if (!session || !snapshot) {
+      return;
+    }
+
+    const nextGameId = snapshot.snapshot.gameId;
+    if (session.gameId === nextGameId) {
+      return;
+    }
+
+    const nextSession: ClientSession = {
+      ...session,
+      gameId: nextGameId,
+      mode: snapshot.snapshot.mode,
+      gameType: snapshot.snapshot.gameType
+    };
+    writeSession(nextSession);
+    setSession(nextSession);
+  }, [session, snapshot]);
+
+  useEffect(() => {
     if (nickname.trim() || !authSession) {
       return;
     }
@@ -451,7 +477,7 @@ export function ChessGame() {
     });
 
     socket.on("chat_history", (history: ChatMessage[]) => {
-      appendChatMessages(history);
+      replaceChatMessages(history);
     });
 
     socket.on("chat_server_message", (message: ChatMessage) => {
@@ -703,6 +729,20 @@ export function ChessGame() {
     );
   };
 
+  const handleRestartGame = async () => {
+    if (!session?.playerToken) {
+      return;
+    }
+
+    await runAction("Reiniciando partida...", () =>
+      emitWithAck("restart_game", {
+        gameType: GAME_TYPE,
+        roomCode: session.roomCode,
+        playerToken: session.playerToken
+      })
+    );
+  };
+
   const handleResign = async () => {
     if (!session?.playerToken) {
       return;
@@ -895,6 +935,7 @@ export function ChessGame() {
           canSendChat={canSendChat}
           chatPlaceholder={chatPlaceholder}
           onMove={handleMove}
+          onRestartGame={handleRestartGame}
           onResign={handleResign}
           onOfferDraw={handleOfferDraw}
           onAcceptDraw={handleAcceptDraw}

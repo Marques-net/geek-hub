@@ -31,8 +31,8 @@ type UserLoginRecord struct {
 }
 
 type LoginRepository struct {
-	client     *mongo.Client
-	collection *mongo.Collection
+	client          *mongo.Client
+	loginCollection *mongo.Collection
 }
 
 func NewLoginRepository(ctx context.Context, cfg Config) (*LoginRepository, error) {
@@ -45,8 +45,8 @@ func NewLoginRepository(ctx context.Context, cfg Config) (*LoginRepository, erro
 	}
 
 	repository := &LoginRepository{
-		client:     client,
-		collection: client.Database(cfg.MongoDatabase).Collection(cfg.MongoCollection),
+		client:          client,
+		loginCollection: client.Database(cfg.MongoDatabase).Collection(cfg.MongoCollection),
 	}
 
 	if err := repository.Ready(connectCtx); err != nil {
@@ -54,9 +54,9 @@ func NewLoginRepository(ctx context.Context, cfg Config) (*LoginRepository, erro
 		return nil, fmt.Errorf("ping mongodb: %w", err)
 	}
 
-	if err := repository.ensureIndexes(connectCtx); err != nil {
+	if err := repository.ensureLoginIndexes(connectCtx); err != nil {
 		_ = repository.Close(context.Background())
-		return nil, fmt.Errorf("ensure mongodb indexes: %w", err)
+		return nil, fmt.Errorf("ensure mongodb login indexes: %w", err)
 	}
 
 	return repository, nil
@@ -79,7 +79,7 @@ func (r *LoginRepository) Close(ctx context.Context) error {
 }
 
 func (r *LoginRepository) RecordLogin(ctx context.Context, record UserLoginRecord) error {
-	if r == nil || r.collection == nil {
+	if r == nil || r.loginCollection == nil {
 		return errors.New("login repository unavailable")
 	}
 
@@ -112,11 +112,11 @@ func (r *LoginRepository) RecordLogin(ctx context.Context, record UserLoginRecor
 		}
 	}
 
-	_, err := r.collection.InsertOne(ctx, document)
+	_, err := r.loginCollection.InsertOne(ctx, document)
 	return err
 }
 
-func (r *LoginRepository) ensureIndexes(ctx context.Context) error {
+func (r *LoginRepository) ensureLoginIndexes(ctx context.Context) error {
 	indexes := []mongo.IndexModel{
 		{
 			Keys: bson.D{
@@ -152,7 +152,7 @@ func (r *LoginRepository) ensureIndexes(ctx context.Context) error {
 		},
 	}
 
-	_, err := r.collection.Indexes().CreateMany(ctx, indexes)
+	_, err := r.loginCollection.Indexes().CreateMany(ctx, indexes)
 	return err
 }
 

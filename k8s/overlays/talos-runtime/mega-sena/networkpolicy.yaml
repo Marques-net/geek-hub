@@ -1,0 +1,76 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mega-sena-viewer-ingress
+  labels:
+    app.kubernetes.io/name: geek-hub
+    app.kubernetes.io/component: mega-sena-viewer
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: geek-hub
+      app.kubernetes.io/component: mega-sena-viewer
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mega-sena-service-network
+  labels:
+    app.kubernetes.io/name: geek-hub
+    app.kubernetes.io/component: mega-sena-service
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: geek-hub
+      app.kubernetes.io/component: mega-sena-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 192.168.0.100/32
+      ports:
+        - protocol: TCP
+          port: 32017
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchExpressions:
+              - key: k8s-app
+                operator: In
+                values:
+                  - kube-dns
+                  - coredns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443

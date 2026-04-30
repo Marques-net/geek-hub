@@ -1,0 +1,43 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mega-sena-viewer
+  labels:
+    app.kubernetes.io/name: geek-hub
+    app.kubernetes.io/component: mega-sena-viewer
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: chess.local
+      http:
+        paths:
+          - path: /api/mega-sena
+            pathType: Prefix
+            backend:
+              service:
+                name: mega-sena-service
+                port:
+                  number: 3000
+          - path: /mega-sena
+            pathType: Prefix
+            backend:
+              service:
+                name: mega-sena-viewer
+                port:
+                  number: 80
+    - http:
+        paths:
+          - path: /api/mega-sena
+            pathType: Prefix
+            backend:
+              service:
+                name: mega-sena-service
+                port:
+                  number: 3000
+          - path: /mega-sena
+            pathType: Prefix
+            backend:
+              service:
+                name: mega-sena-viewer
+                port:
+                  number: 80
